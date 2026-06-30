@@ -18,6 +18,7 @@ input_data = { # nested fields included
     }
 
 
-ScorpioN = vehicle(**input_data)
-print(ScorpioN.model_dump()) # all associated values including inherited feild data, eg : vehicle contains structure_type and wheels only were the inherit class car has more features
-print(ScorpioN)           # data associated with its particular class, eg : vehicle contains structure_type and wheels only
+ScorpioN = vehicle(**input_data) 
+print(ScorpioN.model_dump_json()) # mostly used format, apis , file-handling,databases, caching etc
+print(ScorpioN.model_dump()) # python ke dict me dikhane ke liye
+print(ScorpioN)           # insaan ke liye kaafi, machine ke liye azaab
