@@ -4,7 +4,7 @@ load_dotenv()
 client = genai.Client()
 
 while (True):
-    convo = input("YOU :  ")
+    convo = input("YOU :  ")    
     if convo.lower().strip() in ["exit", "band hojao","bye"]:
         print("Irshard V2:Acha waqt bacha raha toh phir milinge")
         break
