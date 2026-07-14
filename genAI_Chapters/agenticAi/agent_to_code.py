@@ -5,6 +5,7 @@ import requests
 from pydantic import BaseModel
 from dotenv import load_dotenv
 load_dotenv()
+
 SYSTEM_PROMPT = """You are a helpful AI assistant.
 You have access to external tools.
 When the user asks about weather, forecasts, temperature, rain, humidity, or other weather-related information that requires current or future data:
@@ -21,9 +22,9 @@ This tool runs a shell command via Windows PowerShell and returns stdout on succ
 
 ## Environment Context
 - OS: Windows. The shell is PowerShell, not bash/cmd. Use PowerShell syntax and PowerShell-native commands (e.g. `Remove-Item`, `Get-ChildItem`, `Copy-Item`) or their common aliases (`rm`, `ls`, `cp`) — both generally work in PowerShell, but be aware their flags/behavior differ from Unix equivalents. Do not assume bash syntax works as-is.
-- Working directory: C:\Users\moham\Downloads\Development\GenerativeAI\genAi_Chapters\agenticAI
+- Working directory: C:\\Users\\moham\\Downloads\\Development\\GenerativeAI\\genAi_Chapters\\agenticAI
   This is fixed as the tool's cwd for every call — you do not need to `cd` into it, and `cd`-ing within a single call will not persist to the next call since each execute_command runs as a fresh process. If you need to work in a subdirectory, prefix the specific command for that call (e.g. `cd subfolder; python script.py` as one PowerShell statement using `;` to chain), or use full/relative paths directly.
-- Do not include a "PS C:\...>" style prompt prefix in the commands you construct — that is just what the terminal displays, not something you type.
+- Do not include a "PS C:\\...>" style prompt prefix in the commands you construct — that is just what the terminal displays, not something you type.
 
 ## Core Operating Principles
 1. **Think before you act.** Before calling execute_command, briefly state (in 1-3 sentences) what you're about to do and why. Don't narrate excessively — one line of intent per command is enough.
@@ -31,6 +32,14 @@ This tool runs a shell command via Windows PowerShell and returns stdout on succ
 3. **Read before you write.** Before editing or deleting a file, inspect it first (`Get-Content`, `Get-ChildItem`, `git status`) so you understand the current state. Never assume a file's contents or a directory's structure — verify.
 4. **Verify after you act.** After a state-changing command (file edit, install, git operation, build), run a follow-up command to confirm it worked as intended, rather than assuming success from the absence of an error.
 5. **Respect the timeout.** Commands are killed after `timeout` seconds (default 120). If a command is expected to be long-running or blocking by nature (dev servers, `npm start`, watch scripts), do not run it in the foreground expecting it to return — flag this to the user and ask how they want it handled (e.g. run detached, or ask user to run it themselves in a separate terminal).
+
+When generating source code:
+- Produce clean, human-readable code.
+- Use proper indentation (4 spaces for Python, standard formatting for HTML/CSS/JS).
+- Use line breaks appropriately.
+- Never compress an entire file into a single line.
+- Follow the language's common style conventions.
+- The generated files should be production-quality and easy for humans to edit.
 
 ## Safety Guardrails (non-negotiable)
 - NEVER run destructive or irreversible commands without first explaining the risk and getting explicit user confirmation. This includes but is not limited to:
@@ -160,6 +169,7 @@ def main():
             }
         )
         try: 
+            
             response = client.chat.completions.create(
                 model="gemini-3.1-flash-lite",
                 messages=history,
@@ -168,41 +178,63 @@ def main():
             message = response.choices[0].message
         except Exception as ew:
             print(ew)
+            history.pop() # agar exception aaya response banate waqt to req jo append kare udadoh
             continue
-        if message.tool_calls :
-            tools_call = message.tool_calls[0]
-            function_name = tools_call.function.name
-            tool_info = TOOL_MAP[function_name]
-            arguments = tool_info["schema"].model_validate_json(tools_call.function.arguments)
-            result = tool_info["function"](**arguments.model_dump())
-            history.append(message)
-            history.append(
-                {
-                    "role": "tool",
-                    "tool_call_id" : tools_call.id,
-                    "content" : result
-                }
-            )
-            second_resp = client.chat.completions.create(
-                model = "gemini-3.1-flash-lite",
-                messages=history,
-            )
-            answer = second_resp.choices[0].message.content
+        while message.tool_calls:
             
-            print(f"Irshard v2: "+ answer)
             history.append(
             {
+                "role":"assistant",
+                "content":message.content or "",
+                "tool_calls":[
+                    {
+                        "id":tc.id,
+                        "type":"function",
+                        "function":{
+                            "name":tc.function.name,
+                            "arguments":tc.function.arguments
+                        },
+
+                        "extra_content":tc.extra_content
+                    }
+
+                    for tc in message.tool_calls
+                ]
+            }
+            )
+            
+
+            for tool_call in message.tool_calls:
+                function_name = tool_call.function.name
+                tool_info = TOOL_MAP[function_name]
+                arguments = tool_info["schema"].model_validate_json(tool_call.function.arguments)
+                result = tool_info["function"](**arguments.model_dump())
+
+                history.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": result
+                    }
+                )
+                
+            try:
+                response = client.chat.completions.create(
+                    model="gemini-3.1-flash-lite",
+                    messages=history,
+                    tools=tools
+                )
+                message = response.choices[0].message
+            except Exception as ew:
+                print(ew)
+                break
+        final_content = message.content or ""
+        print(f"Irshard v2: " + final_content)
+        history.append(
+            {
                 "role": "assistant",
-                "content": answer
+                "content": final_content
             }
         )
-        else :
-            print(f"Irshard v2: "+ message.content)
-            history.append(
-                {
-                "role": "assistant",
-                "content": message.content
-                }
-            )   
                        
 main()       

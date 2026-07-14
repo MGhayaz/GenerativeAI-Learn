@@ -20,7 +20,8 @@ client = OpenAI(
     api_key=os.getenv("GEMINI_API_KEY"),
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
 )
-tools = [  # ye tool ek list hai jisme ek dic diye, ye dic nested hai jo gemini ke server pe jaati, model isku dekke hi response ka format decide karta, basically ye demand declaration note hai
+tools = [  # ye tool ek list hai jisme ek dic diye, ye dic nested hai jo gemini ke server pe jaati, 
+           # model isku dekke hi response ka format decide karta, basically ye demand declaration note hai
     {
         "type": "function",
         "function": {
