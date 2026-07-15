@@ -1,0 +1,10 @@
+# YAML sirf configuration file hai. ye docker ku bolta ki meku kya hona,  docker isku ich pehele padta before any compose or run
+
+# Image = Blueprint / Template
+# Container = Running instance of that image
+# Service = Compose me image ko manage karne ki configuration
+services: # iske ander aalag alag type ke servives dal sakte jo alag alag containers pe docker load karta
+  vector-db: # yahan vector-db service ka naam (service identifier) hai., iske ander image,port aur properities ho sakte, 
+    image: qdrant/qdrant # image mane blueprint/template, docker jaake docker hub me (image) qdrant/qdrant match karta aur pull karta, also agar already present hai toh nai karta
+    ports: # Host aur container ke ports ko connect (map) karta hai. ye same ollama , aur dusroun ke jaisa hai
+      - 6333:6333
