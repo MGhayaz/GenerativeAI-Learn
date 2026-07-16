@@ -6,6 +6,6 @@ pdf_path = Path(__file__).parent / "test_piece.pdf"
 pdfload = PyPDFLoader(file_path=pdf_path)
 doc = pdfload.load()
 
-print(doc[3])
+print(doc[46])
 
 
