@@ -15,7 +15,7 @@ doc_store = QdrantVectorStore.from_existing_collection(
     url="http://localhost:6333",
     collection_name= "Ghayaz_irshard_basharat"
 )
-def process_runner(user_query:str) ->str:
+def process_runner(user_query:str) ->str: # ye poura method bheja gya as parameter in q.enqueue me 
     similar_result = doc_store.similarity_search(query=user_query)
     print("got relevant chunks")
     context = "\n\n\n".join(

@@ -4,6 +4,6 @@ import uvicorn
 from server import app
 
 def main():
-    uvicorn.run(app, port=8080,host="0.0.0.0")
+    uvicorn.run(app, port=8080,host="0.0.0.0") # ek connection mediator type chiz hai 
     
 main()    

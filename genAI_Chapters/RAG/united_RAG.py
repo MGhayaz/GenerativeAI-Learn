@@ -11,7 +11,7 @@ client = OpenAI(
 )
 
 embeddings = GoogleGenerativeAIEmbeddings(model="gemini-embedding-2-preview")
-doc_store = QdrantVectorStore.from_existing_collection(
+doc_store = QdrantVectorStore.from_existing_collection( # ye woh bahar nikalra jo file- embed_with_langchain.py me dale at line 26
     embedding=embeddings,
     url="http://localhost:6333",
     collection_name= "Ghayaz_irshard_basharat"

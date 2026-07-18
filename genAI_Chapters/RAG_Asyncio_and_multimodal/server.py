@@ -43,9 +43,9 @@ def chat(
 
     # Send a background job to Redis Queue
     #
-    # q.enqueue(
-    #     function_to_execute, - process_runner
-    #     arguments_for_function - user_query jo further banjari "process_runner(user_query)"
+    # q.enqueue( line - 55
+    #     function_to_execute, - process_runner {came from worker.py}
+    #     arguments_for_function - user_query jo further banjari "process_runner(user_query)" {came from this method parameter which is taken from api server directly}
     # )
     #
     # IMPORTANT:
@@ -58,7 +58,7 @@ def chat(
     # Client can use this ID later to check the result - not a real life example magar har app cache me rakti id
     return {
         "status": "queued",
-        "job_id": job.id
+        "job_id": job.id 
     }
 
 
