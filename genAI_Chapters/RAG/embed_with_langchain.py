@@ -21,7 +21,7 @@ text_spitter = RecursiveCharacterTextSplitter(
 )
 chunks = text_spitter.split_documents(documents=doc) 
 
-# embedding
+# embedding and Vector DB store in collectionRT
 embeddings = GoogleGenerativeAIEmbeddings(model="gemini-embedding-2-preview") # ek embedding model ku key ka use karke bulae
 doc_store = QdrantVectorStore.from_documents( # doc_store banaya jisme chunks,model,vector db address aur collection name diye
     documents=chunks,
