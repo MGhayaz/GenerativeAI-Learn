@@ -1,216 +1,53 @@
-# ===========================
-# IMPORTS
-# ===========================
-
-# Annotated ka kaam?
-# ------------------
-# Ye Python ka special type wrapper hai.
-#
-# Normally:
-#     message: list
-#
-# Sirf itna batata hai ki ye list hai.
-#
-# Lekin Annotated ke through hum extra metadata attach kar sakte.
-#
-# Syntax:
-#     Annotated[OriginalType, ExtraInformation]
-#
-# Example:
-#     Annotated[list, add_messages]
-#
-# Matlab:
-# "Ye list hai, aur LangGraph is list ko add_messages rule ke hisaab se update kare."
-#
-# Python ko add_messages se matlab nahi.
-# LangGraph is metadata ko read karta hai.
-
+from dotenv import load_dotenv
+# Existing type ke saath extra metadata attach karta hai.
+# LangGraph is metadata (e.g., add_messages) ko state update rules samajhne ke liye use karta hai.
 from typing import Annotated
-
-
-# TypedDict kya hai?
-# -------------------
-# Ye ek dictionary ka blueprint hai.
-#
-# Normally:
-#
-# state = {
-#     "message": [...],
-#     "name": "Ali"
-# }
-#
-# Is dictionary me kuch bhi daal sakte.
-#
-# TypedDict bolta:
-#
-# "Nahi.
-# Is dictionary me sirf ye predefined keys hi allowed hain."
-#
-# Isse IDE autocomplete,
-# static type checking,
-# aur code readability improve hoti hai.
-
+# Dictionary ka blueprint define karta hai, jisse state ki allowed keys aur types fixed rehte hain.
 from typing_extensions import TypedDict
-
-
-# StateGraph
-# ----------
-# Ye LangGraph ka main workflow builder hai.
-#
-# Iske andar hi:
-#
-# Node add karoge
-# Edge connect karoge
-# START/END define karoge
-# Compile karoge
-#
-# Ye basically graph ka constructor hai.
-
-from langgraph.graph import StateGraph
-
-
-# add_messages
-# ------------
-#
-# Ye LangGraph ka reducer function hai.
-#
-# Reducer matlab:
-#
-# Agar multiple nodes same state field ko update kare,
-# to merge kaise hoga?
-#
-# Example:
-#
-# Old:
-# [
-#   HumanMessage(...)
-# ]
-#
-# New:
-# [
-#   AIMessage(...)
-# ]
-#
-# Without reducer:
-#
-# Old list replace ho jaati.
-#
-# Result:
-# [
-#   AIMessage(...)
-# ]
-#
-# Human message gayab.
-#
-# add_messages reducer bolta:
-#
-# Replace mat karo.
-#
-# Existing messages ke END me naye messages append karo.
-#
-# Result:
-#
-# [
-#   HumanMessage(...),
-#   AIMessage(...)
-# ]
-#
-# Isliye chat history survive karti.
-
+# LangGraph workflow builder hai jisme nodes, edges aur state define karke graph create kiya jata hai.
+from langgraph.graph import StateGraph,START,END
+# Reducer function jo naye messages ko existing chat history me append karta hai, overwrite nahi.
 from langgraph.graph.message import add_messages
-
-
-# ===========================
-# STATE DEFINITION
-# ===========================
+# ai model direct access from langchain
+load_dotenv()
+from langchain.chat_models import init_chat_model
+llm = init_chat_model(
+    model="gemini-3.1-flash-lite",
+    model_provider="google_genai"
+)
 
 class State(TypedDict):
-
     # message
     # -------
-    #
-    # Ye state ki ek field hai.
-    #
-    # Ye ordinary Python list nahi hai.
-    #
-    # Runtime me usually isme LangChain message objects rehte.
-    #
-    # Example:
-    #
-    # [
-    #     HumanMessage(
-    #         content="Hi"
-    #     ),
-    #
-    #     AIMessage(
-    #         content="Hello!"
-    #     )
-    # ]
-    #
-    # Technically:
-    #
-    # list[AnyMessage]
-    #
-    # jahan AnyMessage ho sakta:
-    #
-    # HumanMessage
-    # AIMessage
-    # SystemMessage
-    # ToolMessage
-    #
-    # Tumne generic "list" likha,
-    # isliye Python strict type check nahi karega.
-    #
-    # Production code me usually:
-    #
-    # messages: Annotated[
-    #     list[AnyMessage],
-    #     add_messages
-    # ]
-    #
-    # likhte.
-    #
-    # add_messages metadata LangGraph ko bolta:
-    #
-    # "Jab bhi koi node new messages return kare,
-    # unhe overwrite mat karna.
-    # Existing history me append karna."
-
-    message: Annotated[list, add_messages]
-
-
-# ===========================
-# GRAPH CREATION
-# ===========================
-
-# Ab LangGraph ko bataya ja raha:
-#
-# "Mere workflow ka state
-# State class follow karega."
-#
-# Matlab graph ke andar jitne bhi nodes chalenge,
-#
-# sab isi dictionary ko read/update karenge.
-#
-# Example runtime state:
-#
-# {
-#     "message": [
-#         HumanMessage(...),
-#         AIMessage(...),
-#         HumanMessage(...)
-#     ]
-# }
-#
-# Har node ko ye state milega.
-#
-# Node chahe:
-#
-# LLM ho
-# Retriever ho
-# Tool ho
-# Validator ho
-#
-# sab isi state pe kaam karenge.
-
+    # Graph ka shared state field jo conversation history store karta hai.
+    # add_messages ensure karta hai ki naye messages existing history me append hon.
+    messages: Annotated[list, add_messages]
+# StateGraph ko State schema diya ja raha hai.
+# Is graph ke saare nodes isi shared state ko read aur update karenge.
 graph_builder = StateGraph(State)
+
+def chat_1(state : State):
+    result = llm.invoke(state.get("messages")) # model ku call kare, response liye by giving the existing input log present in state by using "state.get(messages)"
+    return {"messages": [result]}
+def chat_2(state:State):
+    # this node runs after chat_1 as per defined schema below at line 33
+    print("\nfrom chat_2",state , "\n")
+    return {"messages": [" i am chat 2 Node"]}
+# noding and edgeing
+
+graph_builder.add_node("chat_1",chat_1)
+graph_builder.add_node("chat_2", chat_2)
+graph_builder.add_edge(START, "chat_1")
+graph_builder.add_edge("chat_1","chat_2")
+graph_builder.add_edge("chat_2",END)
+
+graphed = graph_builder.compile()
+
+updated_graph = graphed.invoke(
+    State(
+        {
+            "messages": ["hi, this is my first initial message, which will be always placed first in state graph"]
+        }
+    )
+)
+print("updated_state", updated_graph )
