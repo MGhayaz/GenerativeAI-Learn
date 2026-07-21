@@ -42,7 +42,6 @@ graph_builder.add_edge("chat_1","chat_2")
 graph_builder.add_edge("chat_2",END)
 
 graphed = graph_builder.compile()
-
 updated_graph = graphed.invoke(
     State(
         {
