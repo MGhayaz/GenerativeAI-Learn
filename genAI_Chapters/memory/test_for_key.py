@@ -4,21 +4,23 @@ from openai import OpenAI
 load_dotenv()
 os.environ["MEM0_TELEMETRY"] = "false"
 from  mem0 import Memory
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
 client = OpenAI(
-    api_key=os.getenv("GEMINI_API_KEY"),
+    api_key=os.getenv("OPENAI_API_KEY"),
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
 )
 config = {
     "version": "v1.1",
     "embedder" : {
-        "provider": "gemini",
+        "provider": "openai",
         "config" : {
-            "api_key": GEMINI_API_KEY , "model" : "gemini-embedding-2-preview"
+            "api_key": OPENAI_API_KEY , "model" : "text-embedding-3-small"
         }
     },
     "llm" : {
-        "provider": "gemini",
+        "provider": "openai",
         "config" : {
             "api_key": GEMINI_API_KEY , "model" : "gemini-3.1-flash-lite"
         }
