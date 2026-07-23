@@ -2,58 +2,93 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 load_dotenv()
-os.environ["MEM0_TELEMETRY"] = "false"
+from sentence_transformers import SentenceTransformer
 from  mem0 import Memory
+import json
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 client = OpenAI(
     api_key=os.getenv("GEMINI_API_KEY"),
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
 )
 config = {
-    "version": "v1.1",
-    "embedder" : {
+    "llm": {
         "provider": "gemini",
-        "config" : {
-            "api_key": GEMINI_API_KEY , "model" : "gemini-embedding-2-preview"
+        "config": {
+            "api_key": GEMINI_API_KEY,
+            "model": "gemini-3.1-flash-lite",
+            "max_tokens": 1024
         }
     },
-    "llm" : {
-        "provider": "gemini",
-        "config" : {
-            "api_key": GEMINI_API_KEY , "model" : "gemini-3.1-flash-lite"
+
+    "embedder": {
+        "provider": "huggingface",
+        "config": {
+            "model": "multi-qa-MiniLM-L6-cos-v1",
+            "embedding_dims": 384
         }
     },
-    "vector_store" :{
+
+    "vector_store": {
         "provider": "qdrant",
-        "config" : {
+        "config": {
             "host": "localhost",
-            "port" : 6333
+            "port": 6333,
+            "collection_name": "irshard_memory",
+             "embedding_model_dims": 384
         }
     }
 }
 mem_client = Memory.from_config(config)
-user_input = input("Irshard V2: ")
+while(True):
+    user_input = input("💣 YOU: ")
+    if user_input.lower() in ["exit", "quit"]:
+        break
+    mem_search_memory = mem_client.search(
+        query=user_input,
+        filters={
+        "user_id": "ghayaz"
+        }
+    )
+    memories = [
+    f"ID: {mem.get('id')}\n"
+    f"Memory: {mem.get('memory')}"
+    for mem in mem_search_memory.get("results", [])
+    ]
+        
 
-response = client.chat.completions.create(
-    model= "gemini-3.1-flash-lite",
-    messages=[
-        {
-            "role": "user",
-            "content" : user_input
-        }
-    ]
-)
-ai_response = response.choices[0].message.content
-mem_client.add(
-    user_id="ghayaz",
-    messages=[
-        {
-            "role": "user",
-            "content" : user_input
-        },
-        {
-            "role": "assistant",
-            "content" : ai_response
-        }
-    ]
-)
+    SYSTEM_PROMPT = f"""
+    You are Irshard Bhai.
+    Relevant memories about the user:
+    {json.dumps(memories, indent=2)}
+    Use these memories only if they is need and is relevant for answering the user's current message.
+    """    
+    response = client.chat.completions.create(
+        model= "gemini-3.1-flash-lite",
+        messages=[
+            {
+                            "role": "system",
+                            "content" : SYSTEM_PROMPT
+            },
+            {
+                "role": "user",
+                "content" : user_input
+            }
+        ]
+    )
+    ai_response = response.choices[0].message.content
+    print("🗿 Irshard V2 : ",ai_response)
+    mem_client.add(
+        user_id="ghayaz",
+        messages=[
+            {
+                "role": "user",
+                "content" : user_input
+            },
+            {
+                "role": "assistant",
+                "content" : ai_response
+            }
+        ]
+    )
+    print("Got The Memory Saved")
