@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()  # Loads environment variables from .env file.
-
+import os
 from typing_extensions import Annotated, TypedDict
 from langchain.chat_models import init_chat_model
 from langgraph.graph.state import StateGraph, START, END
@@ -9,7 +9,7 @@ from langgraph.checkpoint.mongodb import MongoDBSaver
 
 # MongoDB connection URI.
 # authSource=admin -> Authenticate using the admin database.
-DB_URI = "mongodb://admin:admin@localhost:27017/?authSource=admin"
+DB_URI = os.getenv("DB_URI")
 
 # Runtime configuration for LangGraph.
 # thread_id uniquely identifies a conversation/session.
@@ -85,19 +85,25 @@ with MongoDBSaver.from_conn_string(DB_URI) as checkpointer:
     
 # MongoDBSaver
 # Saves graph checkpoints in MongoDB.
+
 # Checkpoint
 # Snapshot of the graph's current state.
 # Used to continue execution later.
+
 # thread_id
 # Unique memory/session id.
+
 # Same thread_id -> Same conversation history.
 # Different thread_id -> New conversation.
+
 # checkpointer
 # Handles saving and loading graph state automatically.
+
 # graph.compile()
 # Converts graph definition into an executable graph.
 # graph.compile(checkpointer=...)
 # Same graph + automatic state persistence.
+
 # config
 # Runtime settings passed while invoking the graph.
 # Used for thread_id, user_id, checkpoint options, etc.

@@ -49,7 +49,7 @@ def end_node(state : State) :
 graph_build.add_node("chat_model_one",chat_model_one)
 graph_build.add_node("chat_model_two",chat_model_two)
 graph_build.add_node("end_node",end_node)
-#
+# edge connect
 graph_build.add_edge(START , "chat_model_one")
 graph_build.add_conditional_edges("chat_model_one", evaluate_response) # condtional edge method second method [evaluate_response] ku power deta to run further any one node,
 #iske paas do edges rehte outer me, also yahan jo string me node hai ["chat_mode_one"] define karta upper/inner edge
