@@ -2,7 +2,7 @@ import speech_recognition  as sr
 recorgnize = sr.Recognizer()
 
 with sr.Microphone() as mic : # mic file is open
-    recorgnize.adjust_for_ambient_noise(mic) # clearity ke liye call kare
+    recorgnize.adjust_for_ambient_noise(mic) # clearity ke liye mic ku background noise se bachaye
     recorgnize.pause_threshold = 2
     
     print("panel for mic is open, please speak")
