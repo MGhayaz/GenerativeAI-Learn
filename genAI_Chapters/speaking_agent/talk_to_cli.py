@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import subprocess
 import requests
-from pydantic import BaseModel
+from pydantic import BaseModel,ValidationError
 import speech_recognition  as sr
 import simpleaudio as sa
 recorgnize = sr.Recognizer()
@@ -10,6 +10,7 @@ from google import genai
 from google.genai import types
 import wave 
 import base64 
+import traceback
 client = genai.Client()
 
 SYSTEM_PROMPT = """You are a helpful AI assistant.
@@ -118,10 +119,12 @@ def wave_file(filename, pcm, channels=1, rate=24000, sample_width=2): # node for
         wf.setsampwidth(sample_width)
         wf.setframerate(rate)
         wf.writeframes(pcm) 
-def play_audio(filename): # node/function for audio play, it takes the audio which are combinations of alphabets [thats how audio is written]
-    wave_obj = sa.WaveObject.from_wave_file(filename)
-    play_obj = wave_obj.play()
-    play_obj.wait_done()
+def play_audio(filename: str):
+    subprocess.run(
+        ["powershell", "-c",
+         f"(New-Object Media.SoundPlayer '{filename}').PlaySync()"],
+        check=True
+    )
 class weatherArgs(BaseModel):
     city : str
 class commandArgs(BaseModel):
@@ -162,137 +165,167 @@ TOOL_MAP = {
         "schema" : commandArgs
     }
 }    
+
 def main():    
     with sr.Microphone() as mic:
         recorgnize.adjust_for_ambient_noise(mic) # clarity ke liye mic ku background noise se bachaye
         recorgnize.pause_threshold = 2 # here this wait for two seconds to accumulate audio
-    while True:
-        with sr.Microphone() as mic : # mic file is open
-                print("[🎙️]Speak")
-                audio = recorgnize.listen(mic) # actual record jahan mic open hai
-                print("Processing...")
-                try: # unknown input exception block
-                    user_audio_to_text = recorgnize.recognize_google(audio) # this particular call make text from speech so that i can give it to llm
-                except sr.UnknownValueError:
-                    print("Samajh nahi aaya, phir bol...")
-                    continue
-                except sr.RequestError as e: 
-                    print(f"Speech API error: {e}")
-                    continue
-                print("User:", user_audio_to_text)
-        if user_audio_to_text.lower().strip() in ["exit", "band hojao","bye"]:
-            print("Irshard V2: Acha waqt bacha raha toh phir milinge")
-            break
-        history.append( # apending or storing context in list typed dict, here our query is being stored
-                    types.Content(
-                        role="user", 
-                            parts=[
-                                types.Part(text=user_audio_to_text) 
-                            ]
-                    )
-                )
-        try: 
-            response = client.models.generate_content(
-            model="gemini-3.6-flash",  # Gemini me generate_content ke liye sahi model use karein
-                contents=history,          # OpenAI ke 'messages' ki jagah 'contents' use hota hai
-                config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,    
-                tools=tools            # Tools ko config ke andar pass kiya jata hai
-                )
-            )       
-        except Exception as ew:
-            print(ew)
-            history.pop() # agar exception aaya response banate waqt to req jo append kare udadoh
-            continue
-        
-
-# Pehle message ko handle karne ke liye (Loop start hone se pehle ka response)
-# Agar aapke paas initial response hai, toh uski function_calls check karein
-        function_calls = response.function_calls
-        tool_call_count = 0
-        while function_calls:
-            tool_call_count += 1
-            if tool_call_count > 5:
+    try : # don know where this shit get crash silently, big problem big try-catch    
+        while True:
+            with sr.Microphone() as mic : # mic file is open
+                    print("[🎙️]Speak")
+                    audio = recorgnize.listen(mic) # actual record jahan mic open hai
+                    print("Processing...")
+                    try: # unknown input exception block
+                        print("making speech to text for LLM")
+                        user_audio_to_text = recorgnize.recognize_google(audio) # this particular call make text from speech so that i can give it to llm
+                    except sr.UnknownValueError:
+                        print("Samajh nahi aaya, phir bol...")
+                        continue
+                    except sr.RequestError as e: 
+                        print(f"Speech API error: {e}")
+                        continue
+                    print("User:", user_audio_to_text)
+            if user_audio_to_text.lower().strip() in ["exit", "band hojao","bye"]:
+                print("Irshard V2: Acha waqt bacha raha toh phir milinge")
                 break
-            # 1. Assistant ka function call response history me add karein (Gemini automatically requires the original function_call parts in history)
-            # Note: Agar initial response directly models.generate_content se aaya hai, 
-            # toh response.candidates[0].content ko aap seedhe history me append kar sakte hain.
-            history.append(response.candidates[0].content)
-            
-            # Tool responses ko store karne ke liye list
-            tool_response_parts = []
-            
-            # 2. Saare function calls ko execute karein
-            for tool_call in function_calls:
-                function_name = tool_call.name
-                tool_info = TOOL_MAP.get(function_name)
-                if tool_info is None:
-                    break
-                
-                # Gemini arguments directly dict (Python object) hote hain, json string nahi
-                arguments = tool_info["schema"].model_validate(tool_call.args)
-                try:
-                    result = tool_info["function"](**arguments.model_dump())
-                except Exception as e:
-                    result = str(e)
-                
-                
-                # Gemini format me function ka result part banayein
-                # result ko string ya dict format me pass karein
-                tool_response_parts.append(
-                    types.Part.from_function_response(
-                        name=function_name,
-                        response={"result": str(result)}  
+            history.append( # apending or storing context in list typed dict, here our query is being stored
+                        types.Content(
+                            role="user", 
+                                parts=[
+                                    types.Part(text=user_audio_to_text) 
+                                ]
+                        )
                     )
-                )
-            
-            # 3. Tool ke saare results ko 'user' role ke saath history me append karein
-            history.append(
-                types.Content(
-                    role="user",
-                    parts=tool_response_parts
-                )
-            )
-            
-            # 4. Agla tool execution ya final reply lene ke liye model ko dobara call karein
-            try:
+            print("query registered in history")
+            try: 
                 response = client.models.generate_content(
-                    model="gemini-3.6-flash", # Sahi stable model identifier use karein
-                    contents=history,
+                model="gemini-3.6-flash",  # Gemini me generate_content ke liye sahi model use karein
+                    contents=history,          # OpenAI ke 'messages' ki jagah 'contents' use hota hai
                     config=types.GenerateContentConfig(
-                        system_instruction=SYSTEM_PROMPT,
-                        tools=tools
+                    system_instruction=SYSTEM_PROMPT,    
+                    tools=tools            # Tools ko config ke andar pass kiya jata hai
                     )
-                )
-                # Agle loop ke liye check karein ki kya model fir se tool call karna chahta hai
-                function_calls = response.function_calls
-                
+                )       
             except Exception as ew:
                 print(ew)
-                break
+                traceback.print_exc()
+                history.pop() # agar exception aaya response banate waqt to req jo append kare udadoh
+                continue
+            
 
-        # Loop ke bahar, final text result print karein
-        final_content = response.text or ""
-        try: # speech client exception handling
-            interaction = client.interactions.create(
-            model="gemini-3.1-flash-tts-preview",
-            input=f"Speak naturally and conversationally: {final_content}", # defining style and input in input feild as google specifies
-            response_format={"type": "audio"}, # response type declare
-            generation_config={"speech_config": [{"voice": "Leda"}]} # speaker type 
-        )
-        except Exception as e:
-            print(f"TTS error: {e}")
-            continue
-        print("🗣️LLM:", final_content)
-        wave_file('out.wav', base64.b64decode(interaction.output_audio.data))
-        try:
-            play_audio('out.wav')
-        except Exception as e:
-            print(f"Playback error: {e}")
-        # Final model response ko history me save karein
-        if response.candidates and response.candidates[0].content:
-            history.append(response.candidates[0].content)
+                    # Pehle message ko handle karne ke liye (Loop start hone se pehle ka response)
+                    # Agar aapke paas initial response hai, toh uski function_calls check karein
+            function_calls = response.function_calls
+            tool_call_count = 0
+            while function_calls:
+                tool_call_count += 1
+                if tool_call_count > 5:
+                    break
+                # 1. Assistant ka function call response history me add karein (Gemini automatically requires the original function_call parts in history)
+                # Note: Agar initial response directly models.generate_content se aaya hai, 
+                # toh response.candidates[0].content ko aap seedhe history me append kar sakte hain.
+                history.append(response.candidates[0].content)
+                
+                # Tool responses ko store karne ke liye list
+                tool_response_parts = []
+                
+                # 2. Saare function calls ko execute karein
+                for tool_call in function_calls:
+                    function_name = tool_call.name
+                    tool_info = TOOL_MAP.get(function_name)
+                    if tool_info is None:
+                        break
+                    
+                    # Gemini arguments directly dict (Python object) hote hain, json string nahi
+                    try:
+                        arguments = tool_info["schema"].model_validate(tool_call.args)
+                    except ValidationError as e:
+                        print(f"Validation failed: {e}")
+                            # Yahan apna error handling code likhein (e.g., return, log, ya default values)
+                        arguments = None
+                        traceback.print_exc()
+                    try:
+                        result = tool_info["function"](**arguments.model_dump())
+                    except Exception as e:
+                        result = str(e)
+                        traceback.print_exc()
+                    
+                    
+                    # Gemini format me function ka result part banayein
+                    # result ko string ya dict format me pass karein
+                    tool_response_parts.append(
+                        types.Part.from_function_response(
+                            name=function_name,
+                            response={"result": str(result)}  
+                        )
+                    )
+                
+                # 3. Tool ke saare results ko 'user' role ke saath history me append karein
+                history.append(
+                    types.Content(
+                        role="user",
+                        parts=tool_response_parts
+                    )
+                )
+                
+                # 4. Agla tool execution ya final reply lene ke liye model ko dobara call karein
+                try:
+                    print("[function unit] final response creation")
+                    response = client.models.generate_content(
+                        model="gemini-3.6-flash", # Sahi stable model identifier use karein
+                        contents=history,
+                        config=types.GenerateContentConfig(
+                            system_instruction=SYSTEM_PROMPT,
+                            tools=tools
+                        )
+                    )
+                    # Agle loop ke liye check karein ki kya model fir se tool call karna chahta hai
+                    function_calls = response.function_calls
+                    
+                except Exception as ew:
+                    print(ew)
+                    traceback.print_exc()
+                    break
+            try :            
+            # Loop ke bahar, final text result print karein
+                final_content = response.text or ""
+            except Exception as e :
+                traceback.print_exc()
+            try: # speech client exception handling
+                print("creating audio through ai response")
+                interaction = client.interactions.create(
+                model="gemini-3.1-flash-tts-preview",
+                input=f"Speak naturally and conversationally: {final_content}", # defining style and input in input feild as google specifies
+                response_format={"type": "audio"}, # response type declare
+                generation_config={"speech_config": [{"voice": "Leda"}]} # speaker type 
+                ) 
+                print("ai audio created")
+            except Exception as e:
+                print(f"TTS error: {e}")
+                traceback.print_exc()
+                continue
+            print("🗣️LLM:", final_content)
+            print("playing ai audio")
+            wave_file('out.wav', base64.b64decode(interaction.output_audio.data)) # audio speaking - which is made at line 277
+            try:
+                play_audio('out.wav')
+            except Exception as e:
+                print(f"Playback error: {e}")
+                traceback.print_exc()
+            # Final model response ko history me save karein
+            print("llm response appended")
+            if response.candidates and response.candidates[0].content:
+                history.append(response.candidates[0].content)
+            print("Loop completed peacefully ")            
+    except Exception as e : # mega try catch
+        traceback.print_exc()        
         
 
                        
-main()       
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        traceback.print_exc()
+        input("Press Enter...")       
