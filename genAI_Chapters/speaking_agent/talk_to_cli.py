@@ -1,10 +1,10 @@
 from dotenv import load_dotenv
 load_dotenv()
+from pathlib import Path
 import subprocess
 import requests
 from pydantic import BaseModel,ValidationError
 import speech_recognition  as sr
-import simpleaudio as sa
 recorgnize = sr.Recognizer()
 from google import genai
 from google.genai import types
@@ -119,12 +119,24 @@ def wave_file(filename, pcm, channels=1, rate=24000, sample_width=2): # node for
         wf.setsampwidth(sample_width)
         wf.setframerate(rate)
         wf.writeframes(pcm) 
-def play_audio(filename: str):
-    subprocess.run(
-        ["powershell", "-c",
-         f"(New-Object Media.SoundPlayer '{filename}').PlaySync()"],
-        check=True
-    )
+def play_audio(filename: str) -> None: 
+    audio_file = Path(filename).resolve()
+
+    try:
+        subprocess.run(
+            [
+                "powershell",
+                "-Command",
+                f"(New-Object Media.SoundPlayer '{audio_file}').PlaySync()"
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(
+            f"Audio playback failed:\n{e.stderr}"
+        ) from e
 class weatherArgs(BaseModel):
     city : str
 class commandArgs(BaseModel):
@@ -218,7 +230,7 @@ def main():
                     # Agar aapke paas initial response hai, toh uski function_calls check karein
             function_calls = response.function_calls
             tool_call_count = 0
-            while function_calls:
+            while function_calls: # threshold limit 5, 5se zyada baar tools call nahi in each loop traversal
                 tool_call_count += 1
                 if tool_call_count > 5:
                     break
@@ -234,7 +246,7 @@ def main():
                 for tool_call in function_calls:
                     function_name = tool_call.name
                     tool_info = TOOL_MAP.get(function_name)
-                    if tool_info is None:
+                    if tool_info is None: # just ek double check ki ye tool map ke value khali toh nahi hai ya galat toh nahi hai
                         break
                     
                     # Gemini arguments directly dict (Python object) hote hain, json string nahi
@@ -264,7 +276,7 @@ def main():
                 # 3. Tool ke saare results ko 'user' role ke saath history me append karein
                 history.append(
                     types.Content(
-                        role="user",
+                        role="user", # gemini takes tools details as user
                         parts=tool_response_parts
                     )
                 )
@@ -309,20 +321,17 @@ def main():
             print("playing ai audio")
             wave_file('out.wav', base64.b64decode(interaction.output_audio.data)) # audio speaking - which is made at line 277
             try:
-                play_audio('out.wav')
-            except Exception as e:
-                print(f"Playback error: {e}")
-                traceback.print_exc()
+                play_audio("out.wav")
+            except RuntimeError as e:
+                 print(e)
             # Final model response ko history me save karein
             print("llm response appended")
             if response.candidates and response.candidates[0].content:
                 history.append(response.candidates[0].content)
             print("Loop completed peacefully ")            
     except Exception as e : # mega try catch
-        traceback.print_exc()        
-        
-
-                       
+        traceback.print_exc()
+                                 
 if __name__ == "__main__":
     try:
         main()
