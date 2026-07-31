@@ -10,6 +10,7 @@ def append_user(user_audio_to_text):
                                     ]
                             )
                         )
+    return history
 def append_tool(tool_response_parts):
     history.append(
                         types.Content(
@@ -17,9 +18,11 @@ def append_tool(tool_response_parts):
                             parts=tool_response_parts
                         )
                     )
+    return history
 
 def append_assistant(response):
     history.append(response.candidates[0].content)
+    return history
     
 def clear():
       history.pop()  

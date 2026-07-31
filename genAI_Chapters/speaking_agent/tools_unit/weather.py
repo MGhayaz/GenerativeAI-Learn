@@ -1,3 +1,4 @@
+import requests
 def weather(city:str) -> str:
     url = f"https://wttr.in/{city}?format=3"
     try : 

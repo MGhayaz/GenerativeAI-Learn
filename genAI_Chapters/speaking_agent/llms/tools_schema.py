@@ -1,4 +1,5 @@
-def types.Tool(...):
+from client import types
+def types_Tool():
     tools = [
         types.Tool(
             function_declarations=[
@@ -35,3 +36,4 @@ def types.Tool(...):
             ]
         )
     ]
+    return tools
