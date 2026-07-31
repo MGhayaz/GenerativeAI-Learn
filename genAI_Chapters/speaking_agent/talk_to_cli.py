@@ -148,7 +148,6 @@ def weather(city:str) -> str:
         return f"{response.text}"
     except Exception as e :
         return f"something went wrong : {e}"
-
 def execute_command(command: str, timeout: int = 120):
     try:
         result = subprocess.run(
@@ -165,8 +164,7 @@ def execute_command(command: str, timeout: int = 120):
 
     if result.returncode != 0:
         return f"[EXIT CODE {result.returncode}]\n{result.stderr.strip()}"
-    return result.stdout.strip()
-       
+    return result.stdout.strip()      
 TOOL_MAP = {
     "weather" : {
         "function" : weather,
@@ -194,7 +192,7 @@ def main():
                     except sr.UnknownValueError:
                         print("Samajh nahi aaya, phir bol...")
                         continue
-                    except sr.RequestError as e: 
+                    except sr.RequestError as e:    
                         print(f"Speech API error: {e}")
                         continue
                     print("User:", user_audio_to_text)

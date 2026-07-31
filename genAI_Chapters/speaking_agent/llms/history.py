@@ -1,7 +1,7 @@
 from google.genai import types
 history: list[types.Content] = []
 
-def append_user(user_audio_to_text):
+def append_user_query(user_audio_to_text):
     history.append( # apending or storing context in list typed dict, here our query is being stored
                             types.Content(
                                 role="user", 
