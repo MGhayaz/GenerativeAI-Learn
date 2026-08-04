@@ -2,6 +2,7 @@ import traceback
 from pydantic import ValidationError
 from llms import history as his
 from tools_unit import registry
+from google.genai import types
 def function_handler(response , history):
     tool_call_count = 0
     while function_calls: # threshold limit 5, 5se zyada baar tools call nahi in each loop traversal
@@ -11,7 +12,7 @@ def function_handler(response , history):
         # 1. Assistant ka function call response history me add karein (Gemini automatically requires the original function_call parts in history)
         # Note: Agar initial response directly models.generate_content se aaya hai, 
         # toh response.candidates[0].content ko aap seedhe history me append kar sakte hain.
-        history = his.append_assistant(response)
+        history = his.append_assistant(history , response)
         
         # Tool responses ko store karne ke liye list
         tool_response_parts = []

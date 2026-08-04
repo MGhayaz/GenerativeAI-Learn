@@ -11,7 +11,7 @@ def append_user_query(user_audio_to_text):
                             )
                         )
     return history
-def append_tool(tool_response_parts):
+def append_tool(history , tool_response_parts):
     history.append(
                         types.Content(
                             role="user", # gemini takes tools details as user
