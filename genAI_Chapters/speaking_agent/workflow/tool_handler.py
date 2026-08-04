@@ -1,9 +1,11 @@
 import traceback
 from pydantic import ValidationError
-from llms import history as his
+from llms import history as his , client , tools_schema
 from tools_unit import registry
 from google.genai import types
+from prompts import SYSTEM_PROMPT
 def function_handler(response , history):
+    function_calls = response.function_calls
     tool_call_count = 0
     while function_calls: # threshold limit 5, 5se zyada baar tools call nahi in each loop traversal
         tool_call_count += 1
@@ -12,7 +14,7 @@ def function_handler(response , history):
         # 1. Assistant ka function call response history me add karein (Gemini automatically requires the original function_call parts in history)
         # Note: Agar initial response directly models.generate_content se aaya hai, 
         # toh response.candidates[0].content ko aap seedhe history me append kar sakte hain.
-        history = his.append_assistant(history , response)
+        history = his.append_assistant(history ,response)
         
         # Tool responses ko store karne ke liye list
         tool_response_parts = []
@@ -49,22 +51,17 @@ def function_handler(response , history):
             )
         
         # 3. Tool ke saare results ko 'user' role ke saath history me append karein
-        history.append(
-            types.Content(
-                role="user", # gemini takes tools details as user
-                parts=tool_response_parts
-            )
-        )
+        history = his.append_tool(history,tool_response_parts)
         
         # 4. Agla tool execution ya final reply lene ke liye model ko dobara call karein
         try:
             print("[function unit] final response creation")
-            response = client.models.generate_content(
+            response = client.get_genai_client().models.generate_content(
                 model="gemini-3.6-flash", # Sahi stable model identifier use karein
                 contents=history,
                 config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_PROMPT,
-                    tools=tools
+                    tools=tools_schema.TOOLS
                 )
             )
             # Agle loop ke liye check karein ki kya model fir se tool call karna chahta hai
@@ -74,3 +71,5 @@ def function_handler(response , history):
             print(ew)
             traceback.print_exc()
             break
+    final_content = response.text or ""    
+    return final_content
