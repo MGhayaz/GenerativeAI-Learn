@@ -10,6 +10,7 @@ def append_user_query(user_audio_to_text):
                                     ]
                             )
                         )
+    print("query registered in history")
     return history
 def append_tool(history , tool_response_parts):
     history.append(
@@ -22,6 +23,7 @@ def append_tool(history , tool_response_parts):
 
 def append_assistant(response):
     history.append(response.candidates[0].content)
+    print("Loop completed peacefully ")
     return history
     
 def clear():

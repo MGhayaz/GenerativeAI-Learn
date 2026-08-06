@@ -7,6 +7,7 @@ def wave_file(filename, pcm, channels=1, rate=24000, sample_width=2): # node for
         wf.setsampwidth(sample_width)
         wf.setframerate(rate)
         wf.writeframes(pcm) 
+        return filename
 def play_audio(filename: str) -> None: 
     audio_file = Path(filename).resolve()
 
