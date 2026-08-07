@@ -3,16 +3,40 @@ from google.genai import types
 from config import MODEL_NAME
 from prompts import SYSTEM_PROMPT
 from tools_schema import TOOLS as tools
+import traceback
+from llms import history as his, tools_schema
+from dotenv import load_dotenv
+load_dotenv()
 def generate_content(history):
-    response = get_genai_client().models.generate_content(
-                    model=MODEL_NAME,  # Gemini me generate_content ke liye sahi model use karein
-                        contents=history,          # OpenAI ke 'messages' ki jagah 'contents' use hota hai
-                        config=types.GenerateContentConfig(
-                        system_instruction=SYSTEM_PROMPT,    
-                        tools=tools            # Tools ko config ke andar pass kiya jata hai
-                        )
-                    )
+    try :
+        response = get_genai_client().models.generate_content(
+            model=MODEL_NAME,  # Gemini me generate_content ke liye sahi model use karein
+                contents=history,          # OpenAI ke 'messages' ki jagah 'contents' use hota hai
+                config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,    
+                tools=tools            # Tools ko config ke andar pass kiya jata hai
+                )
+            )
+    except Exception as ew:
+        print(ew)
+        traceback.print_exc()
+        his.history.pop()
     return response
-def generate_followup():
-    pass
+def generate_followup(history):
+    try:
+        print("[function unit] final response creation")
+        response = get_genai_client().models.generate_content(
+            model="gemini-3.6-flash", # Sahi stable model identifier use karein
+            contents=history,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                tools=tools_schema.TOOLS
+            )
+        )
+        # Agle loop ke liye check karein ki kya model fir se tool call karna chahta hai
+        return response
+                
+    except Exception as ew:
+        print(ew)
+        traceback.print_exc()
         

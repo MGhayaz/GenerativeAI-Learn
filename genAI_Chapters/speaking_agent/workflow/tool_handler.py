@@ -1,6 +1,6 @@
 import traceback
 from pydantic import ValidationError
-from llms import history as his , client , tools_schema
+from llms import history as his , chat
 from tools_unit import registry
 from google.genai import types
 from prompts import SYSTEM_PROMPT
@@ -52,24 +52,13 @@ def function_handler(response , history):
         
         # 3. Tool ke saare results ko 'user' role ke saath history me append karein
         history = his.append_tool(history,tool_response_parts)
-        
-        # 4. Agla tool execution ya final reply lene ke liye model ko dobara call karein
-        try:
-            print("[function unit] final response creation")
-            response = client.get_genai_client().models.generate_content(
-                model="gemini-3.6-flash", # Sahi stable model identifier use karein
-                contents=history,
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_PROMPT,
-                    tools=tools_schema.TOOLS
-                )
-            )
-            # Agle loop ke liye check karein ki kya model fir se tool call karna chahta hai
-            function_calls = response.function_calls
             
-        except Exception as ew:
-            print(ew)
-            traceback.print_exc()
-            break
-    final_content = response.text or ""    
+            # 4. Agla tool execution ya final reply lene ke liye model ko dobara call karein
+        response = chat.generate_followup(history)
+        function_calls = response.function_calls
+        try :            
+            # Loop ke bahar, final text result print karein
+                final_content = response.text or ""
+        except Exception as e :
+                traceback.print_exc()    
     return final_content

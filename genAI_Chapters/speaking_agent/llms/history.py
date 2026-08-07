@@ -23,7 +23,6 @@ def append_tool(history , tool_response_parts):
 
 def append_assistant(response):
     history.append(response.candidates[0].content)
-    print("Loop completed peacefully ")
     return history
     
 def clear():
