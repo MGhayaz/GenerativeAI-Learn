@@ -1,6 +1,8 @@
-from dotenv import load_dotenv
-load_dotenv()
+from pathlib import Path
+
 MODEL_NAME = "gemini-3.6-flash"
 TTS_MODEL = "gemini-3.1-flash-tts-preview"
 VOICE_NAME = "Leda"
-WORKING_DIRECTORY = "C:/Users/moham/Downloads/Development/GenerativeAI/genAi_Chapters/speaking_agent"
+
+PROJECT_ROOT = Path(__file__).resolve().parent # tumare designated project file ke parent folder access
+WORKING_DIRECTORY = PROJECT_ROOT

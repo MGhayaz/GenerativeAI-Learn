@@ -1,4 +1,4 @@
-from client import get_genai_client
+from llms.client import client
 from google.genai import types
 from config import MODEL_NAME
 from prompts import SYSTEM_PROMPT
@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 def generate_content(history):
     try :
-        response = get_genai_client().models.generate_content(
+        response = client.models.generate_content(
             model=MODEL_NAME,  # Gemini me generate_content ke liye sahi model use karein
                 contents=history,          # OpenAI ke 'messages' ki jagah 'contents' use hota hai
                 config=types.GenerateContentConfig(
@@ -25,7 +25,7 @@ def generate_content(history):
 def generate_followup(history):
     try:
         print("[function unit] final response creation")
-        response = get_genai_client().models.generate_content(
+        response = client.models.generate_content(
             model=MODEL_NAME, # Sahi stable model identifier use karein
             contents=history,
             config=types.GenerateContentConfig(

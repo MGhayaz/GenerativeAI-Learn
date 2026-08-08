@@ -1,4 +1,4 @@
+from dotenv import load_dotenv
 from google import genai
-def get_genai_client():
-    client = genai.Client()
-    return client
+load_dotenv()
+client = genai.Client()
