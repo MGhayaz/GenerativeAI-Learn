@@ -1,64 +1,108 @@
-import traceback
 from pydantic import ValidationError
-from llms import history as his , chat
-from tools_unit import registry
 from google.genai import types
-from prompts import SYSTEM_PROMPT
-def function_handler(response , history):
-    function_calls = response.function_calls
+
+from llms import history as his
+from llms import chat
+from tools_unit import registry
+
+# isku function ke bahr banaye taki inku future me config ke handle kar pana asan aur yaad rahe
+MAX_TOOL_CALLS = 5
+
+
+def function_handler(response, history):
     tool_call_count = 0
-    while function_calls: # threshold limit 5, 5se zyada baar tools call nahi in each loop traversal
+
+    while response.function_calls:
         tool_call_count += 1
-        if tool_call_count > 5:
-            break
-        # 1. Assistant ka function call response history me add karein (Gemini automatically requires the original function_call parts in history)
-        # Note: Agar initial response directly models.generate_content se aaya hai, 
-        # toh response.candidates[0].content ko aap seedhe history me append kar sakte hain.
-        history = his.append_assistant(history ,response)
-        
-        # Tool responses ko store karne ke liye list
+
+        if tool_call_count > MAX_TOOL_CALLS:
+            # instead of making exception, bas error aaye toh raise karare, taki abhi system silently kill nahi dena
+            raise RuntimeError(
+                f"Maximum tool-call limit of {MAX_TOOL_CALLS} exceeded."
+            )
+
+        # Store Gemini's function call response in conversation history. just like it follows the giant loop workflow
+        history = his.append_assistant(
+            history=history,
+            response=response,
+        )
+        # tools functions/apis se aaye result ku store and supply karne ek simple list banaye
         tool_response_parts = []
-        
-        # 2. Saare function calls ko execute karein
-        for tool_call in function_calls:
-            function_name = tool_call.name
-            tool_info = registry.TOOL_MAP.get(function_name)
-            if tool_info is None: # just ek double check ki ye tool map ke value khali toh nahi hai ya galat toh nahi hai
-                break
-            
-            # Gemini arguments directly dict (Python object) hote hain, json string nahi
+
+        for tool_call in response.function_calls: # jabtak llm generated response schema me function call hai, it can be 1 or 2 or 3 or any, jab tak loop chalao
+            function_name = tool_call.name # gemini jo tool function demand kara, woh name nikale bahar
+
+            # yahan gemini ke bataye function ku apne tool_map ke dict me search n bring karre
+            tool_info = registry.TOOL_MAP.get(function_name) # toolmap dict se predefined function schema ke predefined properties eg: function,pydantic schema wagera laye
+
+            if tool_info is None: # agar gemini kuch aisa demand kare jo apne map me hai hi nahi
+                tool_response_parts.append(
+                    types.Part.from_function_response(
+                        name=function_name,
+                        response={
+                            "error": f"Unknown tool: {function_name}" # shortterm context maintaince for llm taki unne recent activities ke bareme malumat rakhe
+                        },
+                    )
+                )
+                continue
+
+            schema = tool_info["schema"] # apne tool_map ke ander decided function ke properties ku bahar nikale
+            function = tool_info["function"]
+
+            # Validate LLM-generated arguments.
             try:
-                arguments = tool_info["schema"].model_validate(tool_call.args)
+                arguments = schema.model_validate(tool_call.args or {}) # yahan response schema me tool_call me ek args rehta jo llm fill karke diya apne ku, woh apni query based rehta, 
+                # like tool_call.args for weather function would be "hyderabad", if we ask about hyd weather to llm
             except ValidationError as e:
-                print(f"Validation failed: {e}")
-                    # Yahan apna error handling code likhein (e.g., return, log, ya default values)
-                arguments = None
-                traceback.print_exc()
+                tool_response_parts.append(
+                    types.Part.from_function_response(
+                        name=function_name,
+                        response={
+                            "error": (
+                                "Invalid tool arguments: " # shortterm context maintaince for llm taki unne recent activities ke bareme malumat rakhe
+                                f"{e}"
+                            )
+                        },
+                    )
+                )
+                continue
+
+            # Execute validated tool.
             try:
-                result = tool_info["function"](**arguments.model_dump())
+                result = function( # yahan [user-query-based]llm decided arg ku json format me function ku dere, function result return karta
+                    **arguments.model_dump()
+                )
             except Exception as e:
-                result = str(e)
-                traceback.print_exc()
-            
-            
-            # Gemini format me function ka result part banayein
-            # result ko string ya dict format me pass karein
+                tool_response_parts.append(
+                    types.Part.from_function_response(
+                        name=function_name,
+                        response={
+                            "error": (
+                                f"Tool execution failed: {e}"
+                            )
+                        },
+                    )
+                )
+                continue
+
             tool_response_parts.append(
                 types.Part.from_function_response(
                     name=function_name,
-                    response={"result": str(result)}  
+                    response={
+                        "result": str(result)
+                    },
                 )
             )
-        
-        # 3. Tool ke saare results ko 'user' role ke saath history me append karein
-        history = his.append_tool(history,tool_response_parts)
-            
-            # 4. Agla tool execution ya final reply lene ke liye model ko dobara call karein
-        response = chat.generate_followup(history)
-        function_calls = response.function_calls
-        try :            
-            # Loop ke bahar, final text result print karein
-                final_content = response.text or ""
-        except Exception as e :
-                traceback.print_exc()    
-    return final_content
+
+        # Give all tool results back to Gemini.
+        history = his.append_tool(
+            history=history,
+            tool_response_parts=tool_response_parts,
+        )
+
+        # Ask Gemini what to do next.
+        response = chat.generate_followup(
+            history=history
+        )
+
+    return response.text or ""
