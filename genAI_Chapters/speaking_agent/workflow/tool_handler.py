@@ -8,7 +8,7 @@ from tools_unit import registry
 # isku function ke bahr banaye taki inku future me config ke handle kar pana asan aur yaad rahe
 MAX_TOOL_CALLS = 5
 
-
+# NOTE MOST_COMPLEX_THING IN PROJECT ,READ ALL TO UNDERSTAND
 def function_handler(response, history):
     tool_call_count = 0
 
@@ -85,7 +85,7 @@ def function_handler(response, history):
                 )
                 continue
 
-            tool_response_parts.append(
+            tool_response_parts.append( # append api result in local list, so which can be passed to llm upnext @ line 100
                 types.Part.from_function_response(
                     name=function_name,
                     response={
@@ -105,4 +105,4 @@ def function_handler(response, history):
             history=history
         )
 
-    return response.text or ""
+    return response.text or "" # return llm made response which do have had the function values
