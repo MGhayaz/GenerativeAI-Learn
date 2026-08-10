@@ -11,4 +11,5 @@ def generate_tts(final_content)-> bytes:
     generation_config={"speech_config": [{"voice": VOICE_NAME}]} # speaker type 
     )
     print("ai audio created")
-    return base64.b64decode(interaction.output_audio.data)
+    audio_data = base64.b64decode(interaction.output_audio.data)
+    return audio_data

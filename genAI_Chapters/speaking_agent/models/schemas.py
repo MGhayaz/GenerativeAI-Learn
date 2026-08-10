@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-class weatherArgs(BaseModel):
+class WeatherArgs(BaseModel):
     city : str
-class commandArgs(BaseModel):
+class WommandArgs(BaseModel):
     command : str
