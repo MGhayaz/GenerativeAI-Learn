@@ -66,31 +66,35 @@ def function_handler(response, history):
                     )
                 )
                 continue
-
+        try :
             # Execute validated tool.
-            try:
-                result = function( # yahan [user-query-based]llm decided arg ku json format me function ku dere, function result return karta
-                    **arguments.model_dump()
+            tool_result = function(**arguments.model_dump())
+        except Exception as e :
+            tool_response_parts.append(
+                types.Part.from_function_response(
+                    name=function_name,
+                    response={
+                            "success": False,
+                            "error": f"Tool execution failed: {e}",
+                    },
                 )
-            except Exception as e:
-                tool_response_parts.append(
-                    types.Part.from_function_response(
-                        name=function_name,
-                        response={
-                            "error": (
-                                f"Tool execution failed: {e}"
-                            )
-                        },
-                    )
-                )
-                continue
+            )
+            continue        
+        if tool_result.success: # see tools_unit scripts or @weather.py line 14 and 20, a tool_result [dict] is return
+            tool_response = {
+                "success": True,
+                "result": tool_result.result,
+            }
+        else:
+            tool_response = {
+                "success": False,
+                "error": tool_result.error,
+            }
 
             tool_response_parts.append( # append api result in local list, so which can be passed to llm upnext @ line 100
                 types.Part.from_function_response(
                     name=function_name,
-                    response={
-                        "result": str(result)
-                    },
+                    response=tool_response
                 )
             )
 

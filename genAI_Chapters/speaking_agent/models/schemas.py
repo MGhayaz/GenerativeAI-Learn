@@ -1,5 +1,10 @@
 from pydantic import BaseModel
 class WeatherArgs(BaseModel):
     city : str
-class WommandArgs(BaseModel):
+class CommandArgs(BaseModel):
     command : str
+    
+class ToolResult(BaseModel): #tool_handler me ane wale nearest possiblilties handle karne ke ek validatiion ka arrangement taki system arg basis me kaam kare nak flow me
+    success: bool
+    result: str | None = None
+    error: str | None = None    
