@@ -6,10 +6,12 @@ TOOL_MAP = {
         "function" : weather,
         "schema" : WeatherArgs,
         "description": "Get current weather of a city.",
+        "requires_confirmation": False,
         },
     "execute_command" : {
         "function" : execute_command,
         "schema" : CommandArgs,
         "description": "Execute a shell command on the local Windows machine and return the output.",
+        "requires_confirmation": True, # this tool does require confimration from user to make wild changes eg : file deletion etc
     }
 }

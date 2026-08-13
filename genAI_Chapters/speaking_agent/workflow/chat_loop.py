@@ -3,6 +3,7 @@ from llms import history,chat
 from workflow import tool_handler
 import traceback, types
 history_log: list[types.Content] = []
+pending_command: PendingCommand | None = None
 try :
     while True:
         user_query = stt.speech_to_text(audio= microphone.Recognizer() )
