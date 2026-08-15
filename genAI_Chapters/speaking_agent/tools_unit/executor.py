@@ -6,40 +6,43 @@ from tools_unit import policy, registry
 
 
 def execute_tool_call(tool_call) -> ToolResult:
-    function_name = tool_call.name
+    function_name = tool_call.name # gemini jo tool function demand kara, woh name nikale bahar
+    # yahan gemini ke bataye function ku apne tool_map ke dict me search n bring karre
+    tool_info = registry.TOOL_MAP.get(function_name) # toolmap dict se predefined function schema ke predefined properties eg: function,pydantic schema wagera laye
 
-    tool_info = registry.TOOL_MAP.get(function_name)
-
-    if tool_info is None:
+    if tool_info is None: # agar gemini kuch aisa demand kare jo apne map me hai hi nahi
         return ToolResult(
             success=False,
-            error=f"Unknown tool: {function_name}",
+            error=f"Unknown tool: {function_name}", # shortterm context maintaince for llm taki unne recent activities ke bareme malumat rakhe
         )
 
-    schema = tool_info["schema"]
+    schema = tool_info["schema"] # apne tool_map ke ander decided function ke properties ku bahar nikale
     function = tool_info["function"]
 
     try:
-        arguments = schema.model_validate(
-            tool_call.args or {}
+        # yahan response schema me tool_call me ek args rehta jo llm fill karke diya apne ku, woh apni query based rehta, 
+                # like tool_call.args for weather function would be "hyderabad", if we ask about hyd weather to llm
+        arguments = schema.model_validate( #schema ek pydantic rule hai, jispe model validate tool_args qualify hota ya nahi [tool_args llm banake diya] 
+            tool_call.args or {} # tool_call.arg nahi chala toh {} do, taki atleast incorrect format error niyana
         )
     except ValidationError as e:
         return ToolResult(
             success=False,
-            error=f"Invalid tool arguments: {e}",
+            error=f"Invalid tool arguments: {e}", # shortterm context maintaince for llm taki unne recent activities ke bareme malumat rakhe
         )
 
-    if function_name == "execute_command":
+    if function_name == "execute_command": # yahan pe set ke through function name match kiya ja sakta hai, agar set of sensitive function's name hai toh aage aao
         command = arguments.command
 
-        if policy.requires_confirmation(command):
+        if policy.requires_confirmation(command): # agar policy return true kara means user ku requestion confirmation
             return ToolResult(
                 success=False,
                 requires_confirmation=True,
                 error="User confirmation is required before executing this command.",
             )
+        # else direct nikaljara result banane function ki taraf    
 
-    try:
+    try: # Execute validated tool.
         result = function(
             **arguments.model_dump()
         )

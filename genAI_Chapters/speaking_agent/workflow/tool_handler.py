@@ -1,9 +1,11 @@
-from pydantic import ValidationError
+
 from google.genai import types
 
 from llms import history as his
 from llms import chat
-from tools_unit import registry
+from tools_unit.executor import execute_tool_call
+
+from models.schemas import ToolResult
 
 # isku function ke bahr banaye taki inku future me config ke handle kar pana asan aur yaad rahe
 MAX_TOOL_CALLS = 5
@@ -30,83 +32,45 @@ def function_handler(response, history):
         tool_response_parts = []
 
         for tool_call in response.function_calls: # jabtak llm generated response schema me function call hai, it can be 1 or 2 or 3 or any, jab tak loop chalao
-            function_name = tool_call.name # gemini jo tool function demand kara, woh name nikale bahar
+            result = execute_tool_call(tool_call=tool_call )
 
-            # yahan gemini ke bataye function ku apne tool_map ke dict me search n bring karre
-            tool_info = registry.TOOL_MAP.get(function_name) # toolmap dict se predefined function schema ke predefined properties eg: function,pydantic schema wagera laye
-
-            if tool_info is None: # agar gemini kuch aisa demand kare jo apne map me hai hi nahi
-                tool_response_parts.append(
-                    types.Part.from_function_response(
-                        name=function_name,
-                        response={
-                            "error": f"Unknown tool: {function_name}" # shortterm context maintaince for llm taki unne recent activities ke bareme malumat rakhe
-                        },
-                    )
-                )
-                continue
-
-            schema = tool_info["schema"] # apne tool_map ke ander decided function ke properties ku bahar nikale
-            function = tool_info["function"]
-
-            # Validate LLM-generated arguments.
-            try:
-                arguments = schema.model_validate(tool_call.args or {}) # yahan response schema me tool_call me ek args rehta jo llm fill karke diya apne ku, woh apni query based rehta, 
-                # like tool_call.args for weather function would be "hyderabad", if we ask about hyd weather to llm
-            except ValidationError as e:
-                tool_response_parts.append(
-                    types.Part.from_function_response(
-                        name=function_name,
-                        response={
-                            "error": (
-                                "Invalid tool arguments: " # shortterm context maintaince for llm taki unne recent activities ke bareme malumat rakhe
-                                f"{e}"
-                            )
-                        },
-                    )
-                )
-                continue
-        try :
-            # Execute validated tool.
-            tool_result = function(**arguments.model_dump())
-        except Exception as e :
             tool_response_parts.append(
-                types.Part.from_function_response(
-                    name=function_name,
-                    response={
-                            "success": False,
-                            "error": f"Tool execution failed: {e}",
-                    },
+                build_tool_response_part(
+                    function_name=tool_call.name,
+                    result=result,
                 )
             )
-            continue        
-        if tool_result.success: # see tools_unit scripts or @weather.py line 14 and 20, a tool_result [dict] is return
-            tool_response = {
-                "success": True,
-                "result": tool_result.result,
-            }
-        else:
-            tool_response = {
-                "success": False,
-                "error": tool_result.error,
-            }
-
-            tool_response_parts.append( # append api result in local list, so which can be passed to llm upnext @ line 100
-                types.Part.from_function_response(
-                    name=function_name,
-                    response=tool_response
-                )
-            )
-
         # Give all tool results back to Gemini.
         history = his.append_tool(
             history=history,
             tool_response_parts=tool_response_parts,
         )
-
         # Ask Gemini what to do next.
         response = chat.generate_followup(
             history=history
         )
 
     return response.text or "" # return llm made response which do have had the function values
+def build_tool_response_part(
+    function_name: str,
+    result: ToolResult,
+) -> types.Part:
+
+    if result.success: # see tools_unit scripts or @weather.py line 14 and 20, a tool_result [dict] is return
+        response = {
+            "success": True,
+            "result": result.result,
+        }
+    else:
+        response = {
+            "success": False,
+            "error": result.error,
+        }
+
+        if result.requires_confirmation:
+            response["requires_confirmation"] = True
+
+    return types.Part.from_function_response(
+        name=function_name,
+        response=response,
+    )
