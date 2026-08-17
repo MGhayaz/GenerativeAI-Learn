@@ -11,3 +11,6 @@ class ToolResult(BaseModel): #tool_handler me ane wale nearest possiblilties han
     error: str | None = None    
 class PendingCommand(BaseModel):
     command: str    
+class ToolExecutionSummary(BaseModel):
+    requires_confirmation: bool = False
+    pending_command: PendingCommand | None = None    
