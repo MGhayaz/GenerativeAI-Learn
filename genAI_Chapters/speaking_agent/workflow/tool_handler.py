@@ -46,7 +46,7 @@ def handle_tool_calls(
         history=history,
         tool_response_parts=tool_response_parts,
     )
-
+    # no gemini followup here - reducted this scripts responsibility
     return history, summary
 def build_tool_response_part(
     function_name: str,
