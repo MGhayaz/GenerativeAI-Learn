@@ -6,9 +6,6 @@ from llms import chat
 from tools_unit.executor import execute_tool_call
 from models.schemas import PendingCommand, ToolExecutionSummary
 
-# isku function ke bahr banaye taki inku future me config ke handle kar pana asan aur yaad rahe
-MAX_TOOL_CALLS = 5
-
 # NOTE MOST_COMPLEX_THING IN PROJECT ,READ ALL TO UNDERSTAND
 def handle_tool_calls(
     response,

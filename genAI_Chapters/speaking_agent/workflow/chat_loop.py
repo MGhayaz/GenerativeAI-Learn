@@ -1,34 +1,98 @@
-from speech import tts, audio,microphone,stt
-from llms import history,chat
+import base64
+import traceback
+from speech import microphone, stt, tts, audio
+from llms import history, chat
 from workflow import tool_handler
-import traceback, types
-history_log: list[types.Content] = []
-pending_command: PendingCommand | None = None
-try :
+from models.schemas import PendingCommand
+MAX_TOOL_ITERATIONS = 5
+
+def run_conversation() -> None:
+    conversation_history = []
+    pending_command: PendingCommand | None = None
+
     while True:
-        user_query = stt.speech_to_text(audio= microphone.Recognizer() )
-        print(f"User: ", user_query)
-        if user_query.lower().strip() in ["exit", "band hojao","bye"]:
-            print("Irshard V2: Acha waqt bacha raha toh phir milinge")
+        user_audio = microphone.Recognizer()
+
+        user_text = stt.speech_to_text(
+            audio=user_audio
+        )
+
+        if not user_text: # AGAR USER QUERY EMPTY HAI TOH PHIRSE ITERATION KARO
+            continue
+
+        print(f"User: {user_text}")
+
+        if user_text.lower().strip() in [
+            "exit",
+            "band hojao",
+            "bye",
+        ]:
+            print(
+                "Irshard V2: Acha waqt bacha raha toh phir milinge"
+            )
             break
-        history_log = history.append_user_query( history=history_log,user_audio_to_text= user_query )
-        
-        response = chat.generate_content(history=history_log)
-        final_content = tool_handler.function_handler(response=response , history_log=history_log)
-        audio_data = tts.generate_tts(final_content)
-        print("🗣️LLM:", final_content)
-        
-        print("playing ai audio")
+
+        conversation_history = history.append_user_query(
+            history=conversation_history,
+            user_audio_to_text=user_text,
+        )
+
+        response = chat.generate_content(
+            history=conversation_history
+        )
+
+        tool_iterations = 0
+
+        while response.function_calls:
+            tool_iterations += 1
+
+            if tool_iterations > MAX_TOOL_ITERATIONS:
+                raise RuntimeError(
+                    "Maximum tool iteration limit exceeded."
+                )
+            # OUR TOOL HANDLER RETURNS A TUPLE WHICH INCLUDES A LIST - HISTORY WITH TOOLS RESPONSES AND EXCEUTIONSUMMARY WHICH MAKED DECISION FOR SUSPECIOUS/DANGER CAUSING COMMANDS
+            (
+                conversation_history,
+                tool_summary,
+            ) = tool_handler.handle_tool_calls(
+                response=response,
+                history=conversation_history,
+            )
+
+            if tool_summary.requires_confirmation:
+                pending_command = tool_summary.pending_command
+
+                print(
+                    "⚠️ This action requires your confirmation."
+                )
+
+                break
+
+            response = chat.generate_followup(
+                history=conversation_history
+            )
+
+        if pending_command is not None:
+            continue
+
+        final_content = response.text or ""
+
+        conversation_history = history.append_assistant(
+            history=conversation_history,
+            response=response,
+        )
+
+        print("🗣️ LLM:", final_content)
+
+        interaction = tts.generate_tts(
+            final_content=final_content
+        )
+
         wav_file = audio.wave_file(
             "out.wav",
-            audio_data
+            base64.b64decode(
+                interaction.output_audio.data
+            ),
         )
-        try:
-            audio.play_audio("out.wav")
-        except RuntimeError as e:
-            print(e)
-        history_log = history.append_assistant(response=response)
-        print("llm response appended")
-        print("Loop completed peacefully ")
-except Exception as e : # mega try catch
-        traceback.print_exc()
+
+        audio.play_audio(wav_file)  
