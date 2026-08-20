@@ -26,11 +26,7 @@ def handle_tool_calls(
 
         if result.requires_confirmation:
             summary.requires_confirmation = True
-
-            if tool_call.name == "execute_command":
-                summary.pending_command = PendingCommand(
-                    command=tool_call.args["command"]
-                )
+            summary.pending_action = result.pending_action
 
         tool_response_parts.append(
             build_tool_response_part(

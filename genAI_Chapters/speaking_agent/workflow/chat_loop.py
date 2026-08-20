@@ -3,12 +3,12 @@ import traceback
 from speech import microphone, stt, tts, audio
 from llms import history, chat
 from workflow import tool_handler
-from models.schemas import PendingCommand
+from models.schemas import PendingAction
 MAX_TOOL_ITERATIONS = 5
 
 def run_conversation() -> None:
     conversation_history = []
-    pending_command: PendingCommand | None = None
+    pending_action: PendingAction | None = None
 
     while True:
         user_audio = microphone.Recognizer()
@@ -60,7 +60,7 @@ def run_conversation() -> None:
             )
 
             if tool_summary.requires_confirmation:
-                pending_command = tool_summary.pending_command
+                pending_action = tool_summary.pending_action
 
                 print(
                     "⚠️ This action requires your confirmation."
@@ -72,7 +72,7 @@ def run_conversation() -> None:
                 history=conversation_history
             )
 
-        if pending_command is not None:
+        if pending_action is not None:
             continue
 
         final_content = response.text or ""

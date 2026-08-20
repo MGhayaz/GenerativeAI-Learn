@@ -1,7 +1,7 @@
 from google.genai import types
 from pydantic import ValidationError
 
-from models.schemas import ToolResult
+from models.schemas import ToolResult, PendingAction
 from tools_unit import policy, registry
 
 
@@ -34,12 +34,16 @@ def execute_tool_call(tool_call) -> ToolResult:
     if function_name == "execute_command": # yahan pe set ke through function name match kiya ja sakta hai, agar set of sensitive function's name hai toh aage aao
         command = arguments.command
 
-        if policy.requires_confirmation(command): # agar policy return true kara means user ku requestion confirmation
+        if policy.requires_confirmation(command):
             return ToolResult(
                 success=False,
                 requires_confirmation=True,
                 error="User confirmation is required before executing this command.",
-            )
+                pending_action=PendingAction(
+                    tool_name=function_name,
+                    arguments=arguments.model_dump(),
+                ),
+    )
         # else direct nikaljara result banane function ki taraf    
 
     try: # Execute validated tool.
@@ -60,3 +64,28 @@ def execute_tool_call(tool_call) -> ToolResult:
         success=True,
         result=str(result),
     )
+def execute_pending_action(
+    action: PendingAction,
+) -> ToolResult:
+    
+    tool_info = registry.TOOL_MAP.get(
+        action.tool_name
+    )
+
+    if tool_info is None:
+        return ToolResult(
+            success=False,
+            error=f"Unknown tool: {action.tool_name}",
+        )
+
+    function = tool_info["function"]
+
+    try:
+        return function(
+            **action.arguments
+        )
+    except Exception as e:
+        return ToolResult(
+            success=False,
+            error=f"Tool execution failed: {e}",
+        )    
