@@ -3,18 +3,19 @@ class WeatherArgs(BaseModel):
     city : str
 class CommandArgs(BaseModel):
     command : str
-    
-class ToolResult(BaseModel): #tool_handler me ane wale nearest possiblilties handle karne ke ek validatiion ka arrangement taki system arg basis me kaam kare nak flow me
-    success: bool
-    requires_confirmation: bool = False
-    result: str | None = None
-    error: str | None = None    
 class PendingAction(BaseModel):
     tool_name: str
     arguments: dict  
+    
+class ToolResult(BaseModel):
+    success: bool
+    result: str | None = None
+    error: str | None = None
+    requires_confirmation: bool = False
+    pending_action: PendingAction | None = None   
 class ToolExecutionSummary(BaseModel):
     requires_confirmation: bool = False
-    pending_command: PendingCommand | None = None    
+    pending_action: PendingAction | None = None    
     
     
     
