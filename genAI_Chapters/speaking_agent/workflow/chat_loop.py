@@ -96,3 +96,20 @@ def run_conversation() -> None:
         )
 
         audio.play_audio(wav_file)  
+def is_confirmation(text: str) -> bool:
+    return text.lower().strip() in {
+        "yes",
+        "y",
+        "haan",
+        "ha",
+        "confirm",
+        "run it",
+    }
+def is_rejection(text: str) -> bool:
+    return text.lower().strip() in {
+        "no",
+        "n",
+        "nahi",
+        "cancel",
+        "stop",
+    }        
