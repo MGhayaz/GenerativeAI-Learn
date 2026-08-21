@@ -15,7 +15,12 @@ class ToolResult(BaseModel):
     pending_action: PendingAction | None = None   
 class ToolExecutionSummary(BaseModel):
     requires_confirmation: bool = False
-    pending_action: PendingAction | None = None    
+    pending_action: PendingAction | None = None
+#STT    
+class SpeechResult(BaseModel):
+    success: bool
+    text: str | None = None
+    error: str | None = None        
     
     
     
