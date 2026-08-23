@@ -9,15 +9,15 @@ MAX_TOOL_ITERATIONS = 5
 def run_conversation() -> None:
     conversation_history = []
     pending_action: PendingAction | None = None
-
+    microphone.calibrate_microphone()
     while True:
-        user_audio = microphone.Recognizer()
+        user_audio = microphone.record_audio()
 
         speech_result = stt.speech_to_text( 
             audio=user_audio
         )
 
-        if not speech_result.success:# AGAR USER QUERY EMPTY HAI TOH PHIRSE ITERATION KARTE RAHO
+        if not speech_result.success:# AGAR USER QUERY EMPTY HAI YA KOI ISSUE/FAULTY HAI TOH PHIRSE ITERATION KARAO
             print(speech_result.error)
             continue
 
