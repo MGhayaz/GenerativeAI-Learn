@@ -13,16 +13,17 @@ def run_conversation() -> None:
     while True:
         user_audio = microphone.Recognizer()
 
-        user_text = stt.speech_to_text(
+        speech_result = stt.speech_to_text( 
             audio=user_audio
         )
 
-        if not user_text: # AGAR USER QUERY EMPTY HAI TOH PHIRSE ITERATION KARO
+        if not speech_result.success:# AGAR USER QUERY EMPTY HAI TOH PHIRSE ITERATION KARTE RAHO
+            print(speech_result.error)
             continue
 
-        print(f"User: {user_text}")
+        print(f"User: {speech_result.text}")
 
-        if user_text.lower().strip() in [
+        if speech_result.text.lower().strip() in [
             "exit",
             "band hojao",
             "bye",
@@ -34,7 +35,7 @@ def run_conversation() -> None:
 
         conversation_history = history.append_user_query(
             history=conversation_history,
-            user_audio_to_text=user_text,
+            user_audio_to_text=speech_result.text,
         )
 
         response = chat.generate_content(
