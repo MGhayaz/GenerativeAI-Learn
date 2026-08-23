@@ -20,7 +20,12 @@ class ToolExecutionSummary(BaseModel):
 class SpeechResult(BaseModel):
     success: bool
     text: str | None = None
-    error: str | None = None    
+    error: str | None = None  
+#TTS
+class TTSResult(BaseModel):
+    success: bool
+    audio_data: bytes | None = None
+    error: str | None = None      
     
     
 # # PendingAction(

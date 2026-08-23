@@ -1,5 +1,4 @@
 import base64
-import traceback
 from speech import microphone, stt, tts, audio
 from llms import history, chat
 from workflow import tool_handler
@@ -85,14 +84,17 @@ def run_conversation() -> None:
 
         print("🗣️ LLM:", final_content)
 
-        interaction = tts.generate_tts(
+        tts_result = tts.generate_tts(
             final_content=final_content
         )
+        if not tts_result.success:
+            print(f"TTS error: {tts_result.error}")
+            continue
 
         wav_file = audio.wave_file(
             "out.wav",
             base64.b64decode(
-                interaction.output_audio.data
+                tts_result.audio_data
             ),
         )
 
