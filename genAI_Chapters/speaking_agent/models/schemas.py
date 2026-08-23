@@ -21,7 +21,10 @@ class SpeechResult(BaseModel):
     success: bool
     text: str | None = None
     error: str | None = None        
-    
+class SpeechResult(BaseModel):
+    success: bool
+    text: str | None = None
+    error: str | None = None    
     
     
 # # PendingAction(
