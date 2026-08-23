@@ -32,10 +32,7 @@ def run_conversation() -> None:
             )
             break
 
-        conversation_history = history.append_user_query(
-            history=conversation_history,
-            user_audio_to_text=user_text,
-        )
+        
 
         response = chat.generate_content(
             history=conversation_history
