@@ -1,13 +1,21 @@
 import wave 
 from pathlib import Path
 import subprocess
-def wave_file(filename, pcm, channels=1, rate=24000, sample_width=2): # node for tts
-    with wave.open(filename, "wb") as wf:
-        wf.setnchannels(channels)
-        wf.setsampwidth(sample_width)
-        wf.setframerate(rate)
-        wf.writeframes(pcm) 
-        return filename
+def write_wav(
+    filename: Path,
+    pcm: bytes,
+    channels: int = 1,
+    rate: int = 24000,
+    sample_width: int = 2,
+) -> Path:
+
+    with wave.open(str(filename), "wb") as wav_file:
+        wav_file.setnchannels(channels)
+        wav_file.setsampwidth(sample_width)
+        wav_file.setframerate(rate)
+        wav_file.writeframes(pcm)
+
+    return filename
 def play_audio(filename: str) -> None: 
     audio_file = Path(filename).resolve()
 
