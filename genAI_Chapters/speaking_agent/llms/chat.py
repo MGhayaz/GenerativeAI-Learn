@@ -3,6 +3,7 @@ from google.genai import types
 from config import MODEL_NAME
 from prompts import SYSTEM_PROMPT
 from tools_schema import TOOLS
+from core.errors import LLMError
 
 def generate_content(history):
     try :

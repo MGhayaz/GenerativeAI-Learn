@@ -1,12 +1,13 @@
 import wave 
 from pathlib import Path
+import tempfile
 import subprocess
 def write_wav(
     filename: Path,
     pcm: bytes,
-    channels: int = 1,
-    rate: int = 24000,
-    sample_width: int = 2,
+    channels: int = 1, #pre-defined
+    rate: int = 24000, #pre-defined
+    sample_width: int = 2, #pre-defined
 ) -> Path:
 
     with wave.open(str(filename), "wb") as wav_file:
@@ -16,8 +17,22 @@ def write_wav(
         wav_file.writeframes(pcm)
 
     return filename
-def play_audio(filename: str) -> None: 
-    audio_file = Path(filename).resolve()
+def create_temp_wav(pcm: bytes) -> Path:
+    temp_file = tempfile.NamedTemporaryFile( # creating a temorary file in system
+        suffix=".wav", 
+        delete=False, # isse jab temporary file jab close hoti toh memory se delete nahi hoti
+    )
+
+    path = Path(temp_file.name) #temp_file jo ek temporary file hai uska file path dale in "path"
+
+    temp_file.close() # temporary file off but not deleted
+
+    return write_wav(
+        filename=path,
+        pcm=pcm,
+    )
+def play_audio(filename: Path) -> None: 
+    audio_file = filename.resolve()
 
     try:
         subprocess.run(

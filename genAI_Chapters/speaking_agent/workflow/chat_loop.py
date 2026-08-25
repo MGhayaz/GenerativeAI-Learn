@@ -91,14 +91,15 @@ def run_conversation() -> None:
             print(f"TTS error: {tts_result.error}")
             continue
 
-        wav_file = audio.wave_file(
-            "out.wav",
-            base64.b64decode(
-                tts_result.audio_data
-            ),
+        audio_file = audio.create_temp_wav(
+            pcm=tts_result.audio_data
         )
 
-        audio.play_audio(wav_file)  
+    try:
+        audio.play_audio(audio_file)
+    finally:
+        audio_file.unlink(missing_ok=True) # whether the temporary file is played or not, delete it
+         
 def is_confirmation(text: str) -> bool:
     return text.lower().strip() in {
         "yes",
