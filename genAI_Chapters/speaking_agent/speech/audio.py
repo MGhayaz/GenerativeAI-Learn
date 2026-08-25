@@ -2,6 +2,7 @@ import wave
 from pathlib import Path
 import tempfile
 import subprocess
+from core.errors import AudioError
 def write_wav(
     filename: Path,
     pcm: bytes,
@@ -9,14 +10,18 @@ def write_wav(
     rate: int = 24000, #pre-defined
     sample_width: int = 2, #pre-defined
 ) -> Path:
+    try:
 
-    with wave.open(str(filename), "wb") as wav_file:
-        wav_file.setnchannels(channels)
-        wav_file.setsampwidth(sample_width)
-        wav_file.setframerate(rate)
-        wav_file.writeframes(pcm)
+        with wave.open(str(filename), "wb") as wav_file:
+            wav_file.setnchannels(channels)
+            wav_file.setsampwidth(sample_width)
+            wav_file.setframerate(rate)
+            wav_file.writeframes(pcm)
 
-    return filename
+        return filename
+    except OSError as e:
+        raise AudioError(f"Failed to write WAV file: {e}") from e
+    
 def create_temp_wav(pcm: bytes) -> Path:
     temp_file = tempfile.NamedTemporaryFile( # creating a temorary file in system
         suffix=".wav", 
@@ -46,6 +51,6 @@ def play_audio(filename: Path) -> None:
             text=True,
         )
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(
+        raise AudioError(
             f"Audio playback failed:\n{e.stderr}"
         ) from e

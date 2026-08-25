@@ -4,6 +4,8 @@ from config import MODEL_NAME
 from prompts import SYSTEM_PROMPT
 from tools_schema import TOOLS
 from core.errors import LLMError
+import logging
+logger = logging.getLogger(__name__)
 
 def generate_content(history):
     try :
@@ -17,10 +19,11 @@ def generate_content(history):
             )
         return response
     except Exception as e:
-        raise RuntimeError("Failed to generate LLM response") from e
+        logger.error("Failed to generate LLM response", exc_info=True)
+        raise LLMError("Failed to generate LLM response.") from e
 def generate_followup(history):
     try:
-        print("[function unit] final response creation")
+        logger.info("Generating follow-up LLM response")
 
         response = client.models.generate_content(
             model=MODEL_NAME,
@@ -34,7 +37,6 @@ def generate_followup(history):
         return response
 
     except Exception as e:
-        raise RuntimeError(
-            "Failed to generate follow-up LLM response"
-        ) from e
+        logger.error("Failed to generate follow-up LLM response", exc_info=True)
+        raise LLMError("Failed to generate follow-up LLM response.") from e
         
