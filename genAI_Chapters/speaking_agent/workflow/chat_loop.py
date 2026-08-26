@@ -3,6 +3,8 @@ from speech import microphone, stt, tts, audio
 from llms import history, chat
 from workflow import tool_handler
 from models.schemas import PendingAction
+import logging
+logger = logging.getLogger(__name__)
 MAX_TOOL_ITERATIONS = 5
 
 def run_conversation() -> None:
@@ -62,7 +64,7 @@ def run_conversation() -> None:
             if tool_summary.requires_confirmation:
                 pending_action = tool_summary.pending_action
 
-                print(
+                logger.info(
                     "⚠️ This action requires your confirmation."
                 )
 

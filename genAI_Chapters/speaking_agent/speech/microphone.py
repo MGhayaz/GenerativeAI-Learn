@@ -1,5 +1,7 @@
 import speech_recognition  as sr
 from core.errors import SpeechError
+import logging
+logger = logging.getLogger(__name__)
 recognizer = sr.Recognizer()
 def record_audio()-> sr.AudioData: 
     try:
@@ -18,13 +20,13 @@ def record_audio()-> sr.AudioData:
 def calibrate_microphone(duration: float = 1.0,) -> None:
     try:
         with sr.Microphone() as microphone:
-            print("[🎙️] Calibrating microphone...")
+            logger.info("[🎙️] Calibrating microphone...")
             recognizer.adjust_for_ambient_noise(
                 microphone,
                 duration=duration,
             )
             recognizer.pause_threshold = 2.0
-            print("[🎙️] Microphone calibrated.")
+            logger.info("[🎙️] Microphone calibrated.")
 
     except OSError as e:
         raise RuntimeError(
