@@ -1,6 +1,6 @@
 import subprocess
 from models.schemas import ToolResult
-from config import settings
+from core.config import settings
 def execute_command(command: str, timeout: int = settings.command_timeout)-> ToolResult:
     try:
         result = subprocess.run(

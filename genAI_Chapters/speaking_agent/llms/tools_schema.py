@@ -1,5 +1,5 @@
 from google.genai import types
-from tools_unit.registry import TOOL_MAP
+from tools.registry import TOOL_MAP
 
 def build_tools()-> list[types.Tool]: # it is made in place of tools_maps in order to cater many tools_function schemas 
     declarations = [] 

@@ -1,7 +1,7 @@
 from llms.client import client
 from google.genai import types
-from config import settings
-from prompts import SYSTEM_PROMPT
+from core.config import settings
+from prompts.system import SYSTEM_PROMPT
 from tools_schema import TOOLS
 from core.errors import LLMError
 import logging

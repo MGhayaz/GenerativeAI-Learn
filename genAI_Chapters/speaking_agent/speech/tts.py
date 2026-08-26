@@ -1,5 +1,5 @@
 from llms.client import client
-from config import settings
+from core.config import settings
 from models.schemas import TTSResult 
 
 
