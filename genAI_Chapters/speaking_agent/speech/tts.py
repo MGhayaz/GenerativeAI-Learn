@@ -1,5 +1,5 @@
 from llms.client import client
-from config import TTS_MODEL, VOICE_NAME
+from config import settings
 from models.schemas import TTSResult 
 
 
@@ -8,11 +8,11 @@ def generate_tts(final_content)-> bytes:
         
         print("creating audio through ai response")
         interaction = client.interactions.create(
-            model=TTS_MODEL,
+            model=settings.TTS_MODEL,
             input=f"Speak naturally and conversationally: {final_content}", # defining style and input in input feild as google specifies
             response_format={"type": "audio"}, # response type declare
                 generation_config={
-                "speech_config": [{"voice": VOICE_NAME}]
+                "speech_config": [{"voice": settings.VOICE_NAME}]
                 } # speaker type 
         )
         print("ai audio created")

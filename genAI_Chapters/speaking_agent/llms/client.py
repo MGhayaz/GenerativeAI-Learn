@@ -1,4 +1,4 @@
-from dotenv import load_dotenv
 from google import genai
-load_dotenv()
-client = genai.Client()
+from config import settings
+
+client = genai.Client( api_key=settings.google_api_key,)

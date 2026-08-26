@@ -1,7 +1,7 @@
 import subprocess
 from models.schemas import ToolResult
-from config import WORKING_DIRECTORY
-def execute_command(command: str, timeout: int = 120)-> ToolResult:
+from config import settings
+def execute_command(command: str, timeout: int = settings.command_timeout)-> ToolResult:
     try:
         result = subprocess.run(
             command,
@@ -10,7 +10,7 @@ def execute_command(command: str, timeout: int = 120)-> ToolResult:
             # stopping it from printing to the screen.
             text=True, #  It tells Python to automatically decode the incoming raw bytes(pc ki basha) from the operating system into a clean Python string 
             timeout=timeout,
-            cwd=WORKING_DIRECTORY
+            cwd=settings.working_directory
         )
     except subprocess.TimeoutExpired: # zyada time liya toh exeption
         return ToolResult( success=False, error=( f"Command exceeded {timeout}s and was terminated."),)
