@@ -1,4 +1,18 @@
-from pydantic import BaseModel
+from collections.abc import Callable
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict
+
+class ToolDefinition(BaseModel):
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True
+    )
+
+    function: Callable[..., Any] # callable ka kaam hai koi callable chiz jaise function ku validate karna
+    schema: type[BaseModel]
+    description: str
+    requires_confirmation : bool 
+    
 class WeatherArgs(BaseModel):
     city : str
 class CommandArgs(BaseModel):

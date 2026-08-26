@@ -2,10 +2,11 @@ from llms.client import client
 from google.genai import types
 from core.config import settings
 from prompts.system import SYSTEM_PROMPT
-from tools_schema import TOOLS
+from tools.schema_builder import build_gemini_tools
 from core.errors import LLMError
 import logging
 logger = logging.getLogger(__name__)
+TOOLS = build_gemini_tools()
 
 def generate_content(history):
     try :
@@ -14,7 +15,7 @@ def generate_content(history):
                 contents=history,          # OpenAI ke 'messages' ki jagah 'contents' use hota hai
                 config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,    
-                tools=TOOLS            # Tools ko config ke andar pass kiya jata hai
+                tools=TOOLS           # Tools ko config ke andar pass kiya jata hai
                 )
             )
         return response
