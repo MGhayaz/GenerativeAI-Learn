@@ -11,7 +11,7 @@ class ToolDefinition(BaseModel):
     function: Callable[..., Any] # callable ka kaam hai koi callable chiz jaise function ku validate karna
     schema: type[BaseModel]
     description: str
-    requires_confirmation : bool 
+    requires_confirmation : bool = False
     
 class WeatherArgs(BaseModel):
     city : str

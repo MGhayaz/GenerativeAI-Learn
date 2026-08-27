@@ -8,16 +8,16 @@ from tools import policy, registry
 def execute_tool_call(tool_call) -> ToolResult:
     function_name = tool_call.name # gemini jo tool function demand kara, woh name nikale bahar
     # yahan gemini ke bataye function ku apne tool_map ke dict me search n bring karre
-    tool_info = registry.TOOL_MAP.get(function_name) # toolmap dict se predefined function schema ke predefined properties eg: function,pydantic schema wagera laye
+    tool_definition = registry.TOOL_MAP.get(function_name) # toolmap dict se predefined function schema ke predefined properties eg: function,pydantic schema wagera laye
 
-    if tool_info is None: # agar gemini kuch aisa demand kare jo apne map me hai hi nahi
+    if tool_definition is None: # agar gemini kuch aisa demand kare jo apne map me hai hi nahi
         return ToolResult(
             success=False,
             error=f"Unknown tool: {function_name}", # shortterm context maintaince for llm taki unne recent activities ke bareme malumat rakhe
         )
 
-    schema = tool_info["schema"] # apne tool_map ke ander decided function ke properties ku bahar nikale
-    function = tool_info["function"]
+    schema = tool_definition.schema # apne tool_map ke ander decided function ke properties ku bahar nikale
+    function = tool_definition.function
 
     try:
         # yahan response schema me tool_call me ek args rehta jo llm fill karke diya apne ku, woh apni query based rehta, 
@@ -30,20 +30,24 @@ def execute_tool_call(tool_call) -> ToolResult:
             success=False,
             error=f"Invalid tool arguments: {e}", # shortterm context maintaince for llm taki unne recent activities ke bareme malumat rakhe
         )
+    argument_data = arguments.model_dump()
 
-    if function_name == "execute_command": # yahan pe set ke through function name match kiya ja sakta hai, agar set of sensitive function's name hai toh aage aao
-        command = arguments.command
-
-        if policy.requires_confirmation(command):
-            return ToolResult(
-                success=False,
-                requires_confirmation=True,
-                error="User confirmation is required before executing this command.",
-                pending_action=PendingAction(
-                    tool_name=function_name,
-                    arguments=arguments.model_dump(),
-                ),
-    )
+    if policy.requires_confirmation(
+        tool_definition,
+        argument_data,
+    ):
+        return ToolResult(
+            success=False,
+            requires_confirmation=True,
+            error=(
+                "User confirmation is required "
+                "before executing this action."
+            ),
+            pending_action=PendingAction(
+                tool_name=function_name,
+                arguments=argument_data,
+            ),
+        )
         # else direct nikaljara result banane function ki taraf    
 
     try: # Execute validated tool.
@@ -88,4 +92,4 @@ def execute_pending_action(
         return ToolResult(
             success=False,
             error=f"Tool execution failed: {e}",
-        )    
+        )
