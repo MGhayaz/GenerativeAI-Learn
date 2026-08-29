@@ -1,7 +1,7 @@
 from command import execute_command
 from weather import weather
 from models.schemas import WeatherArgs,CommandArgs,ToolDefinition
-TOOL_MAP : dict[str,ToolDefinition] = {
+TOOL_REGISTRY : dict[str,ToolDefinition] = {
     "weather" : ToolDefinition(
         function = weather,
         schema = WeatherArgs,

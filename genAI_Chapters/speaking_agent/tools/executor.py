@@ -8,7 +8,7 @@ from tools import policy, registry
 def execute_tool_call(tool_call) -> ToolResult:
     function_name = tool_call.name # gemini jo tool function demand kara, woh name nikale bahar
     # yahan gemini ke bataye function ku apne tool_map ke dict me search n bring karre
-    tool_definition = registry.TOOL_MAP.get(function_name) # toolmap dict se predefined function schema ke predefined properties eg: function,pydantic schema wagera laye
+    tool_definition = registry.TOOL_REGISTRY.get(function_name) # toolmap dict se predefined function schema ke predefined properties eg: function,pydantic schema wagera laye
 
     if tool_definition is None: # agar gemini kuch aisa demand kare jo apne map me hai hi nahi
         return ToolResult(
@@ -72,7 +72,7 @@ def execute_pending_action(
     action: PendingAction,
 ) -> ToolResult:
     
-    tool_info = registry.TOOL_MAP.get(
+    tool_info = registry.TOOL_REGISTRY.get(
         action.tool_name
     )
 
@@ -82,7 +82,7 @@ def execute_pending_action(
             error=f"Unknown tool: {action.tool_name}",
         )
 
-    function = tool_info["function"]
+    function = tool_info.function
 
     try:
         return function(
