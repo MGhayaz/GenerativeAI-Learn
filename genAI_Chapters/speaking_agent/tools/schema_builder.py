@@ -1,6 +1,6 @@
 from google.genai import types
 
-from registry import TOOL_REGISTRY
+from tools.registry import TOOL_REGISTRY
 
 def build_gemini_tools() -> list[types.Tool]: # it is made in place of tools_maps in order to cater many tools_function schemas 
     declarations = []

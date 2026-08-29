@@ -1,4 +1,3 @@
-import base64
 from speech import microphone, stt, tts, audio
 from llms import history, chat
 from workflow import tool_handler
