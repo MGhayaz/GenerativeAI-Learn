@@ -13,12 +13,12 @@ def speech_to_text(audio):
             text=text.strip(),
         )
     except sr.UnknownValueError:
-        SpeechResult(
+        return SpeechResult(
             success=False,
             error="Samajh nahi aaya, phir bol..."
         )
     except sr.RequestError as e: 
-        SpeechResult(
+        return SpeechResult(
             success=False,
             error=f"Speech API error: {e}"
         )
