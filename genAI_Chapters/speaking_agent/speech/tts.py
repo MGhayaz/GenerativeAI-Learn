@@ -8,11 +8,11 @@ def generate_tts(final_content)-> bytes:
         
         print("creating audio through ai response")
         interaction = client.interactions.create(
-            model=settings.TTS_MODEL,
+            model=settings.tts_model,
             input=f"Speak naturally and conversationally: {final_content}", # defining style and input in input feild as google specifies
             response_format={"type": "audio"}, # response type declare
                 generation_config={
-                "speech_config": [{"voice": settings.VOICE_NAME}]
+                "speech_config": [{"voice": settings.voice_name}]
                 } # speaker type 
         )
         print("ai audio created")

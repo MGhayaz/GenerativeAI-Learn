@@ -20,13 +20,13 @@ def record_audio()-> sr.AudioData:
 def calibrate_microphone(duration: float = 1.0,) -> None:
     try:
         with sr.Microphone() as microphone:
-            logger.info("[🎙️] Calibrating microphone...")
+            #logger.info("[🎙️] Calibrating microphone...")
             recognizer.adjust_for_ambient_noise(
                 microphone,
                 duration=duration,
             )
             recognizer.pause_threshold = 2.0
-            logger.info("[🎙️] Microphone calibrated.")
+            #logger.info("[🎙️] Microphone calibrated.")
 
     except OSError as e:
         raise RuntimeError(
