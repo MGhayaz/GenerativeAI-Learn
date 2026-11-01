@@ -28,21 +28,21 @@ def handle_tool_calls(
 
         if result.requires_confirmation:
             summary.requires_confirmation = True
-            summary.pending_action = result.pending_action
+            summary.pending_action = result.pending_action # tool name to tool name and argument to argument pass
         summary.records.append(
             ToolCallRecord(
-            tool_name=tool_call.name,
-            arguments=dict(tool_call.args or {}),
-            status=(
-                "awaiting_confirmation" if result.requires_confirmation
-                else "success" if result.success
-                else "error"
-            ),
+                tool_name=tool_call.name,
+                arguments=dict(tool_call.args or {}),
+                status=(
+                    "awaiting_confirmation" if result.requires_confirmation
+                    else "success" if result.success
+                    else "error"
+                ),
             result=(result.result or "")[:2000] or None,
             error=(result.error or "")[:2000] or None,
             latency_ms=latency_ms,
-        )
-    )    
+            )
+        )    
 
         tool_response_parts.append(
             build_tool_response_part(

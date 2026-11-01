@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     voice_name: str = "Leda"
 
     working_directory: Path
+    max_tool_iterations = 5
+    
 
     max_tool_iterations: int = Field(
         default=5,

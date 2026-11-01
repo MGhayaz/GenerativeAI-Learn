@@ -1,6 +1,6 @@
 import requests
 from models.schemas import ToolResult  # success: bool, result: str | None = None, error: str | None = None 
-def weather(city:str) -> str:
+def weather(city:str) -> ToolResult:
     url = f"https://wttr.in/{city}?format=3"
     try:
         response = requests.get(
