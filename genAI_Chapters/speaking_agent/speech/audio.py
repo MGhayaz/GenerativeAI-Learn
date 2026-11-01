@@ -31,14 +31,14 @@ def create_temp_wav(pcm: bytes) -> Path:
     path = Path(temp_file.name) #temp_file jo ek temporary file hai uska file path dale in "path"
 
     temp_file.close() # temporary file off but not deleted
-
+   
     return write_wav(
         filename=path,
         pcm=pcm,
     )
 def play_audio(filename: Path) -> None: 
     audio_file = filename.resolve()
-
+   
     try:
         subprocess.run(
             [
@@ -50,6 +50,7 @@ def play_audio(filename: Path) -> None:
             capture_output=True,
             text=True,
         )
+
     except subprocess.CalledProcessError as e:
         raise AudioError(
             f"Audio playback failed:\n{e.stderr}"

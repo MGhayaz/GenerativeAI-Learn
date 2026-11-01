@@ -4,14 +4,14 @@ from models.schemas import WeatherArgs,CommandArgs,ToolDefinition
 TOOL_REGISTRY : dict[str,ToolDefinition] = {
     "weather" : ToolDefinition(
         function = weather,
-        schema = WeatherArgs,
+        schemas = WeatherArgs,
         description= "Get current weather of a city.",
         requires_confirmation= False,
     ),
     "execute_command" : ToolDefinition(
         function = execute_command,
-        schema = CommandArgs,
+        schemas = CommandArgs,
         description= "Execute a shell command on the local Windows machine and return the output.",
         requires_confirmation= True, # this tool does require confimration from user to make wild changes eg : file deletion etc
     ),
-}
+}   

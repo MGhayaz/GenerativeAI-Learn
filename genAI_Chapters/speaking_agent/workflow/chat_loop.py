@@ -96,10 +96,11 @@ def run_conversation() -> None:
             pcm=tts_result.audio_data
         )
 
-    try:
-        audio.play_audio(audio_file)
-    finally:
-        audio_file.unlink(missing_ok=True) # whether the temporary file is played or not, delete it
+        try:
+            audio.play_audio(audio_file)
+        finally:
+            audio_file.unlink(missing_ok=True) # whether the temporary file is played or not, delete it
+           
          
 def is_confirmation(text: str) -> bool:
     return text.lower().strip() in {

@@ -16,7 +16,7 @@ def execute_tool_call(tool_call) -> ToolResult:
             error=f"Unknown tool: {function_name}", # shortterm context maintaince for llm taki unne recent activities ke bareme malumat rakhe
         )
 
-    schema = tool_definition.schema # apne tool_map ke ander decided function ke properties ku bahar nikale
+    schema = tool_definition.schemas # apne tool_map ke ander decided function ke properties ku bahar nikale
     function = tool_definition.function
 
     try:

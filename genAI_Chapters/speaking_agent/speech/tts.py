@@ -1,7 +1,7 @@
 from llms.client import client
 from core.config import settings
 from models.schemas import TTSResult 
-
+import base64
 
 def generate_tts(final_content)-> bytes:
     try:
@@ -16,9 +16,16 @@ def generate_tts(final_content)-> bytes:
                 } # speaker type 
         )
         print("ai audio created")
+        output_audio = interaction.output_audio
+        if output_audio is None or not output_audio.data:
+            return TTSResult(
+                success=False,
+                error="TTS returned no audio data",
+            )
+
         return TTSResult(
             success=True,
-            audio_data=interaction.output_audio.data
+            audio_data=base64.b64decode(output_audio.data, validate=True),
         )
     except  Exception as e :
         return TTSResult(
