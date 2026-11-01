@@ -28,9 +28,7 @@ def run_conversation() -> None:
             "band hojao",
             "bye",
         ]:
-            print(
-                "Irshard V2: Acha waqt bacha raha toh phir milinge"
-            )
+            print("🗣️LLM: Good Bye Sir")
             break
 
         conversation_history = history.append_user_query(

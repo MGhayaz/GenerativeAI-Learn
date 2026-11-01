@@ -34,14 +34,14 @@ while(True):
         try: # unknown input exception block
             user_audio_to_text = recorgnize.recognize_google(audio) # this particular call make text from speech so that i can give it to llm
         except sr.UnknownValueError:
-            print("Samajh nahi aaya, phir bol...")
+            print("🗣️LLM: Please repeat the last sentence")
             continue
         except sr.RequestError as e: 
             print(f"Speech API error: {e}")
             continue
         print("User:", user_audio_to_text)
         if user_audio_to_text.lower().strip() in {"exit", "bye", "stop"}: # for check out
-            print("acha waqt bacha raha toh phir milinge...")
+            print("🗣️LLM: Good Bye Sir")
             break    
         chat_history.append( # apending or storing context in list typed dict, here our query is being stored
             types.Content(

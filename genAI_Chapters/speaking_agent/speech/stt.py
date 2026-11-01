@@ -15,7 +15,7 @@ def speech_to_text(audio):
     except sr.UnknownValueError:
         return SpeechResult(
             success=False,
-            error="Samajh nahi aaya, phir bol..."
+            error="🗣️LLM: Please repeat the last sentence"
         )
     except sr.RequestError as e: 
         return SpeechResult(
