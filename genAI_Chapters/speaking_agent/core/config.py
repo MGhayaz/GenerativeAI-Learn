@@ -13,12 +13,19 @@ class Settings(BaseSettings):
         ...,
         min_length=1,
     )
+    mongodb_connection_id : str = Field (
+        ...,
+        min_length=1
+    )
     mongodb_connection_password : str = Field( 
         ...,
         min_length=1,
     )
 # yahan bi env ke values dale kyuki agar .env se feilds missing hue toh yahan as default diye jaate [prority env to config]
     model_name: str = "gemini-3.5-flash-lite"
+    mongodb_database_name : str = "speaking_agent_conversation_logs"
+    mongodb_regular_collection_name : str = "regular conversations"
+    mongodb_turns_collection_name : str = "turns"
 
     tts_model: str = "gemini-3.1-flash-tts-preview"
 

@@ -1,15 +1,16 @@
 from core.config import settings
 from pymongo import MongoClient
 
-MONGODB_CONNECTION_STRING =f"mongodb+srv://mohammedghayaz60_db_user:{settings.mongodb_connection_password}@speaking-agent-cluster.gb3iwdu.mongodb.net/"
+MONGODB_CONNECTION_STRING =f"mongodb+srv://{settings.mongodb_connection_id}:{settings.mongodb_connection_password}@speaking-agent-cluster.gb3iwdu.mongodb.net/"
 
 mongo_client = MongoClient(MONGODB_CONNECTION_STRING)
-io = mongo_client.speaking_agent_conversation_logs.list_collection_names()
-print(io)
 
-databases = mongo_client.list_database_names()
-print(f"databases names : {databases}")
-collection_gallery = mongo_client.speaking_agent_conversation_logs
-print(f"database {databases[0]} has following collection : {collection_gallery.list_collection_names()}")
+conversational_log_database = mongo_client[settings.mongodb_database_name]
+regular_collection = conversational_log_database[settings.mongodb_regular_collection_name]
+turns_collection = conversational_log_database[settings.mongodb_turns_collection_name]
+
+
+
+
 
 
