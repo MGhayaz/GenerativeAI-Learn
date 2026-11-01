@@ -10,6 +10,11 @@ regular_collection = conversational_log_database[settings.mongodb_regular_collec
 turns_collection = conversational_log_database[settings.mongodb_turns_collection_name]
 
 
+# these indexes creation commands were only meant to run for one time while we have freshly created a collection, not meant to be run every time
+# turns_collection.create_index([("conversation_id", 1), ("turn_index", 1)])
+# turns_collection.create_index([("tool_calls.tool_name", 1), ("tool_calls.status", 1)])
+
+
 
 
 
