@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     mongodb_turns_collection_name : str = "turns"
 
     tts_model: str = "gemini-3.1-flash-tts-preview"
+    chat_closure_set : set = {
+            "exit",
+            "band hojao",
+            "bye",
+    }
 
     voice_name: str = "Leda"
 
