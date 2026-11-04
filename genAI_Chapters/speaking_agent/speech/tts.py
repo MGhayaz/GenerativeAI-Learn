@@ -1,4 +1,4 @@
-from llms.client import client
+from llms.client import get_client
 from core.config import settings
 from models.schemas import TTSResult 
 import base64
@@ -7,9 +7,9 @@ def generate_tts(final_content)-> bytes:
     try:
         
         print("creating audio through ai response")
-        interaction = client.interactions.create(
+        interaction = get_client().interactions.create(
             model=settings.tts_model,
-            input=f"Speak naturally and conversationally: {final_content}", # defining style and input in input feild as google specifies
+            input=f"Speak like a hyderabadi petite girl: {final_content}", # defining style and input in input feild as google specifies
             response_format={"type": "audio"}, # response type declare
                 generation_config={
                 "speech_config": [{"voice": settings.voice_name}]

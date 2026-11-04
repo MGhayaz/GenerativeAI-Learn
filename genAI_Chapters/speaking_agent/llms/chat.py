@@ -1,4 +1,4 @@
-from llms.client import client
+from llms.client import get_client
 from google.genai import types
 from core.config import settings
 from prompts.system import SYSTEM_PROMPT
@@ -10,7 +10,7 @@ TOOLS = build_gemini_tools()
 
 def generate_content(history):
     try :
-        response = client.models.generate_content(
+        response = get_client().models.generate_content(
             model=settings.model_name,  # Gemini me generate_content ke liye sahi model use karein
                 contents=history,          # OpenAI ke 'messages' ki jagah 'contents' use hota hai
                 config=types.GenerateContentConfig(
@@ -26,7 +26,7 @@ def generate_followup(history):
     try:
         logger.info("Generating follow-up LLM response")
 
-        response = client.models.generate_content(
+        response = get_client().models.generate_content(
             model=settings.model_name,
             contents=history,
             config=types.GenerateContentConfig(

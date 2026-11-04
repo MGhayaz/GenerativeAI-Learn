@@ -4,13 +4,16 @@ from core.config import settings
 def execute_command(command: str, timeout: int = settings.command_timeout)-> ToolResult:
     try:
         result = subprocess.run(
-            command,
-            shell=True,# ye chiz python ku bolti ki system ke native command shell me function chalao.
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", command],
+            # shell=True,# ye shell jake python ku bolti ki system ke native command shell me function chalao.
             capture_output=True, # It redirects and intercepts both the standard output (stdout) and standard error (stderr) of the running process,
             # stopping it from printing to the screen.
             text=True, #  It tells Python to automatically decode the incoming raw bytes(pc ki basha) from the operating system into a clean Python string 
             timeout=timeout,
+            errors="replace",
+            encoding="utf-8",
             cwd=settings.working_directory
+            
         )
     except subprocess.TimeoutExpired: # zyada time liya toh exeption
         return ToolResult( success=False, error=( f"Command exceeded {timeout}s and was terminated."),)

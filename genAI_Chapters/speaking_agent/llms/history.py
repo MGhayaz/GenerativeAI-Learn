@@ -33,3 +33,7 @@ def append_assistant(
     
 def clear(history: list[types.Content]) -> None:
     history.clear()  
+    
+def append_model_text(history: list[types.Content], text: str) -> list[types.Content]:
+    history.append(types.Content(role="model", parts=[types.Part(text=text)]))
+    return history    

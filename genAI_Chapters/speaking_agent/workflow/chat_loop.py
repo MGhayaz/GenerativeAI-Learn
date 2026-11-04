@@ -112,6 +112,12 @@ def run_conversation() -> None:
         except Exception:
             logger.exception("Unexpected failure in turn")
             status = "failed"   
+        if status == "awaiting_confirmation" and pending_action is not None:
+            assistant_message = (
+                f"I need your confirmation before running: "
+                f"{pending_action.arguments.get('command')}. Say yes to proceed or no to cancel."
+            )
+            conversation_history = history.append_model_text(conversation_history, assistant_message)    
         turn_contents = conversation_history[turn_start:]     
         if status == "failed":
             del conversation_history[turn_start:]
@@ -129,10 +135,13 @@ def run_conversation() -> None:
             ],
         ))
 
-        if status in ("failed", "awaiting_confirmation"):
+        if status =="failed": 
             continue                
 
-        final_content = response.text or ""
+        # final_content = response.text or ""
+        final_content = assistant_message or ""
+        if not final_content:
+            continue
         print("🗣️ LLM:", final_content)
         tts_result = tts.generate_tts(
             final_content=final_content
