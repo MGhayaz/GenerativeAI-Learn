@@ -114,7 +114,7 @@ def run_conversation() -> None:
             status = "failed"   
         if status == "awaiting_confirmation" and pending_action is not None:
             assistant_message = (
-                f"I need your confirmation before running: "
+                f"Final Call for: "
                 f"{pending_action.arguments.get('command')}. Say yes to proceed or no to cancel."
             )
             conversation_history = history.append_model_text(conversation_history, assistant_message)    

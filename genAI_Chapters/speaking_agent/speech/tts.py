@@ -9,7 +9,7 @@ def generate_tts(final_content)-> bytes:
         print("creating audio through ai response")
         interaction = get_client().interactions.create(
             model=settings.tts_model,
-            input=f"Speak like a hyderabadi petite girl: {final_content}", # defining style and input in input feild as google specifies
+            input=f"Speak like a Indian man speaking English: {final_content}", # defining style and input in input feild as google specifies
             response_format={"type": "audio"}, # response type declare
                 generation_config={
                 "speech_config": [{"voice": settings.voice_name}]

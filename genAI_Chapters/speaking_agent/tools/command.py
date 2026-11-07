@@ -1,11 +1,13 @@
 import subprocess
 from models.schemas import ToolResult
 from core.config import settings
+
+# PowerShell 5.1 default pe non-UTF8 output deta hai (isi se 79ÿ740 jaisa ÿ aata tha)
+UTF8_PREAMBLE = "[Console]::OutputEncoding = [Text.Encoding]::UTF8; "
 def execute_command(command: str, timeout: int = settings.command_timeout)-> ToolResult:
     try:
         result = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", command],
-            # shell=True,# ye shell jake python ku bolti ki system ke native command shell me function chalao.
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", UTF8_PREAMBLE + command],
             capture_output=True, # It redirects and intercepts both the standard output (stdout) and standard error (stderr) of the running process,
             # stopping it from printing to the screen.
             text=True, #  It tells Python to automatically decode the incoming raw bytes(pc ki basha) from the operating system into a clean Python string 

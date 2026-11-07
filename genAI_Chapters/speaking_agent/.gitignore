@@ -14,5 +14,7 @@ venv/
 .vscode/
 .idea/
 
+
+playground/. # playground folder will be visible but inside content will not
 # files for test
 *.pdf

@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     )
 # yahan bi env ke values dale kyuki agar .env se feilds missing hue toh yahan as default diye jaate [prority env to config]
     model_name: str = "gemini-3.5-flash-lite"
+    model_temperature:int=0
     mongodb_database_name : str = "speaking_agent_conversation_logs"
     mongodb_regular_collection_name : str = "regular conversations"
     mongodb_turns_collection_name : str = "turns"
@@ -34,7 +35,11 @@ class Settings(BaseSettings):
             "bye",
     }
 
-    voice_name: str = "Leda"
+    llm_max_retries: int = 3
+    llm_retry_base_delay: float = 1.0
+    llm_retry_max_delay: float = 8.0
+
+    voice_name: str = "Orion"
 
     working_directory: Path
     max_tool_iterations = 5
