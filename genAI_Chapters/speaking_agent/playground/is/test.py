@@ -1,1 +1,0 @@
-print("FAR life with Misery")
