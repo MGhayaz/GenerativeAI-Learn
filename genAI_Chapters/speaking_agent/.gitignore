@@ -15,6 +15,10 @@ venv/
 .idea/
 
 
-playground/. # playground folder will be visible but inside content will not
+# playground folder will be visible but inside content will not
+playground/*
+!playground/.gitkeep
+
+
 # files for test
 *.pdf

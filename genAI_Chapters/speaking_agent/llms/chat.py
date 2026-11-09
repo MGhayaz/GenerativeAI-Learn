@@ -23,7 +23,7 @@ def _generate_llm_response(history: Any) -> Any:
                 contents=history, # OpenAI ke 'messages' ki jagah 'contents' use hota hai
                 config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_PROMPT,
-                    tools=TOOLS, # Tools ko config ke andar pass kiya jata hai
+                    tools=TOOLS, # Tools ko config ke andar pass kiya jata hai, and also jabtak agent apna kaam poura nahi karta, unne bada text jaise user ku present kiya jata woh har tool call pe nahi banata, ek turn ke poure tool call hue baad last me response.text banata, jabtak bas response.functioncalls barte rehta
                     temperature=settings.model_temperature
                 ),
             )
