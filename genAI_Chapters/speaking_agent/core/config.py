@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     llm_retry_base_delay: float = 1.0
     llm_retry_max_delay: float = 8.0
 
-    voice_name: str = "Orion"
+    voice_name: str = "Leda"
 
     working_directory: Path
     max_tool_iterations = 5
