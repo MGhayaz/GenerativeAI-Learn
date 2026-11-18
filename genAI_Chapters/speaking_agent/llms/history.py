@@ -1,5 +1,14 @@
+import json
 from google.genai import types
 
+def contents_from_docs(docs: list[dict]) -> list[types.Content]:
+    """DB mein stored llm_contents (JSON dicts) ko wapas types.Content banata hai.
+
+    JSON-mode validation isliye: bytes fields (thought_signature) base64 se
+    sahi decode hon. Python-mode validate string ko seedha bytes bana sakta hai,
+    jisse signature kharab ho jaata hai. Test isi ko verify karta hai.
+    """
+    return [types.Content.model_validate_json(json.dumps(doc)) for doc in docs]
 
 def append_user_query(
     history: list[types.Content],
@@ -15,7 +24,7 @@ def append_user_query(
     )
 
     return history
-def append_tool(history , tool_response_parts):
+def append_tool(history , tool_response_parts): # tool_response_parts ko history mein add karna, taaki Gemini ko pata chale ki tool call hua tha aur uska response kya tha.
     history.append(
                         types.Content(
                             role="user", # gemini takes tools details as user
