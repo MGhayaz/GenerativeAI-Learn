@@ -7,7 +7,7 @@ from workflow.confirmation import is_confirmation,is_rejection
 from tools.executor import execute_pending_action
 from database.repository import save_turn
 from workflow.tool_handler import handle_tool_calls
-from models.schemas import PendingAction , TurnRecord, ToolCallRecord
+from models.schemas import PendingAction , TurnRecord, ToolCallRecord,LLMCallRecord
 import logging
 logger = logging.getLogger(__name__)
 from core.config import settings
@@ -34,9 +34,11 @@ def run_conversation() -> None:
         if speech_result.text.lower().strip() in settings.chat_closure_set:
             print("🗣️LLM: Good Bye Sir")
             break
+        # geninune turn ka start
         turn_index += 1
-        turn_start = len(conversation_history)   # is turn ka start
+        turn_start = len(conversation_history)   
         tool_records: list[ToolCallRecord] = []
+        llm_calls: list[LLMCallRecord] = []
         assistant_message: str | None = None
         status = "success"
         
@@ -78,7 +80,8 @@ def run_conversation() -> None:
             user_audio_to_text=model_input, # user_text nahi
         )
         try:
-            response = chat.generate_content(history=conversation_history)
+            response, call = chat.generate_content(history=conversation_history,iteration=1)
+            llm_calls.append(call)
             tool_iterations = 0
         
             while response.function_calls:
@@ -99,7 +102,12 @@ def run_conversation() -> None:
                     status = "awaiting_confirmation"
                     break
 
-                response = chat.generate_followup(history=conversation_history)
+                response, call = chat.generate_followup(
+                history=conversation_history,
+                iteration=tool_iterations + 1,
+                )
+                llm_calls.append(call)
+                
             if status != "awaiting_confirmation":
                 assistant_message = response.text or ""
                 conversation_history = history.append_assistant(
