@@ -1,1 +1,25 @@
 genAI_Projects/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+.speak/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
