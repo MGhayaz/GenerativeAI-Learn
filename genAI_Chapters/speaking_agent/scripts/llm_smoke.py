@@ -5,17 +5,18 @@ Run: python -m scripts.llm_smoke
 from llms import chat
 from llms import history as his
 
-
 def main() -> None:
-    user_text = "Say hi in one short sentence."
     contents: list = []
-    his.append_user_query(contents, user_text)
+    his.append_user_query(contents, "Say hi in one short sentence.")
 
-    response, record = chat.generate_content(history=contents, iteration=1)
-
-    print("reply:", response.text)
-    print(record.model_dump_json(indent=2))
-
+    for i in range(7):
+        response, record = chat.generate_content(history=contents, iteration=1)
+        usage = record.usage
+        print(
+            f"call {i}: key={record.key_index} prompt={usage.prompt_tokens} "
+            f"cached={usage.cached_tokens} latency={record.latency_ms}ms" 
+            # implicit caching erratic hai,
+        )
 
 if __name__ == "__main__":
     main()

@@ -9,6 +9,7 @@ from database.repository import save_turn
 from workflow.tool_handler import handle_tool_calls
 from models.schemas import PendingAction , TurnRecord, ToolCallRecord,LLMCallRecord
 import logging
+from llms.usage import compute_footprint, sum_usage
 logger = logging.getLogger(__name__)
 from core.config import settings
 
@@ -38,6 +39,7 @@ def run_conversation() -> None:
         turn_index += 1
         turn_start = len(conversation_history)   
         tool_records: list[ToolCallRecord] = []
+        failure_reason: str | None = None
         llm_calls: list[LLMCallRecord] = []
         assistant_message: str | None = None
         status = "success"
@@ -115,18 +117,34 @@ def run_conversation() -> None:
                 )
                 if any(r.status == "error" for r in tool_records):
                     status = "partial_failure"
-        except LLMError:
+        except LLMError as exc:
             status = "failed"
-        except Exception:
+            failure_reason = f"LLMError: {exc}"[:300]
+        except Exception as exc:
             logger.exception("Unexpected failure in turn")
             status = "failed"   
+            failure_reason = f"{type(exc).__name__}: {exc}"[:300]
         if status == "awaiting_confirmation" and pending_action is not None:
             assistant_message = (
                 f"Final Call for: "
                 f"{pending_action.arguments.get('command')}. Say yes to proceed or no to cancel."
             )
             conversation_history = history.append_model_text(conversation_history, assistant_message)    
-        turn_contents = conversation_history[turn_start:]     
+        turn_contents = conversation_history[turn_start:] 
+        usage_totals = sum_usage(llm_calls) if llm_calls else None
+
+        footprint_tokens: int | None = None
+        footprint_source: str | None = None
+        if status != "failed" and llm_calls: # Agar turn failed hai toh footprint ka calculation nahi karna, kyuki agar LLM call fail hua toh uska usage bhi nahi milega, aur agar koi LLM call nahi hua toh footprint ka calculation bhi karke bekar
+            # awaiting turn mein gate ka function_response + hamara message
+            # kisi LLM call ko nahi gaye, wo E_tail hai
+            tail = turn_contents[-2:] if status == "awaiting_confirmation" else []
+            footprint_tokens, footprint_source = compute_footprint(
+                calls=llm_calls,
+                user_text=model_input,   # speech text nahi, jo history mein gaya wo
+                tail_contents=tail,
+                turn_contents=turn_contents,
+            )    
         if status == "failed":
             del conversation_history[turn_start:]
         save_turn(TurnRecord( # database is storing following values, mongodb, collection name "turns"
@@ -141,6 +159,11 @@ def run_conversation() -> None:
                 c.model_dump(mode="json", exclude_none=True)
                 for c in turn_contents
             ],
+            llm_calls=llm_calls,
+            usage_totals=usage_totals,
+            footprint_tokens=footprint_tokens,
+            footprint_source=footprint_source,
+            failure_reason=failure_reason,
         ))
 
         if status =="failed": 

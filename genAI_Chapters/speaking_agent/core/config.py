@@ -50,7 +50,7 @@ class Settings(BaseSettings):
         ge=1,
         le=20,
     )
-
+    fixed_overhead_default: int = 3850   # measured: system prompt + tool schemas (Phase 1) , Is value ko jab bhi system prompt ya tools badlo, dobara measure karna padega.
     command_timeout: int = Field(
         default=120,
         ge=1,
