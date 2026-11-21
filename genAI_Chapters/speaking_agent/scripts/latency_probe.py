@@ -39,10 +39,10 @@ def main() -> None:
     stored = [c for t in turns for c in t["llm_contents"]]
     rebuilt = contents_from_docs(stored)
 
-    probe("A: tiny prompt", with_user([], SIMPLE))
-    probe("B: tiny, longer answer", with_user([], LONGER))
-    probe("C: DB history + signatures", with_user(rebuilt, FOLLOWUP))
-    probe("D: DB history, no signatures", with_user(strip_signatures(rebuilt), FOLLOWUP))
+    probe(f"A: tiny prompt: {SIMPLE}", with_user([], SIMPLE))
+    probe(f"B: tiny, longer answer: {LONGER}", with_user([], LONGER))
+    probe(f"C: DB history + signatures: {FOLLOWUP}", with_user(rebuilt, FOLLOWUP))
+    probe(f"D: DB history, no signatures: {FOLLOWUP}", with_user(strip_signatures(rebuilt), FOLLOWUP))
 
 
 if __name__ == "__main__":
