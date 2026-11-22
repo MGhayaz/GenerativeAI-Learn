@@ -15,6 +15,8 @@ class ToolCallRecord(BaseModel): # Represents a record of a tool call made durin
     result: str | None = None
     error: str | None = None
     latency_ms: int
+    output_chars: int | None = None   # tool ne actual kitna output diya (cap se pehle)        
+    truncated: bool = False           # cap laga ya nahi
 class UsageSnapshot(BaseModel): # Represents a snapshot of token usage for a single LLM call, including counts for prompt tokens, output tokens, thoughts tokens, cached tokens, tool use prompt tokens, total tokens, and the source of the usage information (either "api" or "estimated").
     prompt_tokens: int | None = None
     output_tokens: int | None = None
@@ -59,7 +61,7 @@ class TurnRecord(BaseModel): # Represents a record of a single turn in a convers
     usage_totals: UsageTotals | None = None
     footprint_tokens: int | None = None
     footprint_source: Literal["api", "estimated"] | None = None
-    failure_reason: str | None = None
+    failure_reason: str | None = None    
 
     
 class ToolDefinition(BaseModel): # Represents the definition of a tool that can be called by the assistant, including the callable function, input/output schemas, description, and whether the tool requires confirmation before execution.

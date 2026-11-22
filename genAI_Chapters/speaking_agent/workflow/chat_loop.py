@@ -3,6 +3,7 @@ from llms import history, chat
 from core.errors import LLMError
 import uuid
 import time
+from tools.limiter import cap_text
 from workflow.confirmation import is_confirmation,is_rejection
 from tools.executor import execute_pending_action
 from database.repository import save_turn
@@ -53,7 +54,7 @@ def run_conversation() -> None:
                 started = time.perf_counter()
                 result = execute_pending_action(pending_action)
                 latency_ms = int((time.perf_counter() - started) * 1000)
-
+                raw_output = result.result or result.error or ""
                 tool_records.append(
                     ToolCallRecord(
                         tool_name=pending_action.tool_name,
@@ -62,13 +63,19 @@ def run_conversation() -> None:
                         result=(result.result or "")[:2000] or None,
                         error=(result.error or "")[:2000] or None,
                         latency_ms=latency_ms,
+                        output_chars=len(raw_output),
+                        truncated=len(raw_output) > settings.max_tool_output_chars,
                     )
                 )
+                output_text = cap_text(
+                    result.result or result.error or "",
+                    settings.max_tool_output_chars,
+                ).text
                 model_input = (
                     f"The user confirmed. The command "
                     f"`{pending_action.arguments.get('command')}` was executed. "
                     f"success={result.success}. "
-                    f"Output: {(result.result or result.error or '')[:2000]}"
+                    f"Output: {output_text}"
                 )
             elif is_rejection(user_text):
                 model_input = (

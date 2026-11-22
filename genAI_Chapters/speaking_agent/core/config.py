@@ -56,6 +56,11 @@ class Settings(BaseSettings):
         ge=1,
         le=600,
     )
+    max_tool_output_chars: int = Field(
+    default=4000,
+    ge=200,
+    le=50000,
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

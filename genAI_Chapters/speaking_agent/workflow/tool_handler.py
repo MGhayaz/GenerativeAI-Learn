@@ -1,10 +1,12 @@
 import time
 from google.genai import types
 
+from core.config import settings
 from llms import history as his
 from llms import chat
 from tools.executor import execute_tool_call
-from models.schemas import ToolExecutionSummary,ToolCallRecord
+from models.schemas import ToolExecutionSummary,ToolCallRecord,ToolResult
+from tools.limiter import cap_text
 
 # NOTE MOST_COMPLEX_THING IN PROJECT ,READ ALL TO UNDERSTAND
 def handle_tool_calls(
@@ -29,6 +31,7 @@ def handle_tool_calls(
         if result.requires_confirmation:
             summary.requires_confirmation = True
             summary.pending_action = result.pending_action # tool name to tool name and argument to argument pass
+        raw_output = result.result or result.error or ""
         summary.records.append(
             ToolCallRecord(
                 tool_name=tool_call.name,
@@ -38,9 +41,11 @@ def handle_tool_calls(
                     else "success" if result.success
                     else "error"
                 ),
-            result=(result.result or "")[:2000] or None,
-            error=(result.error or "")[:2000] or None,
-            latency_ms=latency_ms,
+                result=(result.result or "")[:2000] or None,
+                error=(result.error or "")[:2000] or None,
+                latency_ms=latency_ms,
+                output_chars=len(raw_output),
+                truncated=len(raw_output) > settings.max_tool_output_chars,
             )
         )    
 
@@ -57,15 +62,20 @@ def handle_tool_calls(
     )
     # no gemini followup here - reducted this scripts responsibility
     return history, summary
+def _cap_optional(text: str | None) -> str | None:
+    if not text:
+        return text
+    return cap_text(text, settings.max_tool_output_chars).text
+
 def build_tool_response_part(
     function_name: str,
-    result,
+    result : ToolResult,
 ) -> types.Part:
 
     response = {
         "success": result.success,
-        "result": result.result,
-        "error": result.error,
+        "result": _cap_optional(result.result),
+        "error": _cap_optional(result.error),
     }
 
     if result.requires_confirmation:
