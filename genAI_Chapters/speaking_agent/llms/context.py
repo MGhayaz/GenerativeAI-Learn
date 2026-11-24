@@ -56,3 +56,46 @@ def build_context(state: ConversationState) -> BuiltContext:
     turns = state.turns[state.window_start:]
     contents = [content for turn in turns for content in turn.contents]
     return BuiltContext(contents=contents, turns_included=len(turns))
+
+def _shrink(text: str, max_chars: int) -> str | None:
+    """text ko chhota stub banao. Stub original se chhota na ho toh None (chhedo mat)."""
+    if len(text) <= max_chars:
+        return None
+    stub = text[:max_chars] + f"... [trimmed {len(text) - max_chars} chars]"
+    return stub if len(stub) < len(text) else None
+
+
+def compact_content(
+    content: types.Content,
+    max_chars: int,
+) -> tuple[types.Content, int]:
+    """Purane turn ke function_response ke bade 'result'/'error' strings chhote karo.
+
+    Copy pe kaam hota hai, original kabhi mutate nahi. Kuch compact nahi hua toh
+    wahi original object wapas aata hai. Part structure, function_call aur text
+    kabhi nahi chhedte, taaki call/response ki pairing na tootey.
+    Returns (content, chars_saved).
+    """
+    parts = content.parts or []
+    if not any(part.function_response for part in parts):
+        return content, 0
+
+    compacted = content.model_copy(deep=True)
+    chars_saved = 0
+    for part in compacted.parts or []:
+        resp = part.function_response
+        if resp is None or not resp.response:
+            continue
+        for key in ("result", "error"):
+            value = resp.response.get(key)
+            if not isinstance(value, str):
+                continue
+            stub = _shrink(value, max_chars)
+            if stub is None:
+                continue
+            chars_saved += len(value) - len(stub)
+            resp.response[key] = stub
+
+    if chars_saved == 0:
+        return content, 0
+    return compacted, chars_saved    

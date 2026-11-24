@@ -1,6 +1,6 @@
 from google.genai import types
 
-from llms.context import ConversationState, build_context
+from llms.context import ConversationState, build_context , compact_content
 
 
 def user_text(text: str) -> types.Content:
@@ -113,3 +113,63 @@ def test_commit_turn_copies_input_list():
 def test_same_input_same_output():
     state = make_state()
     assert dump(build_context(state).contents) == dump(build_context(state).contents)
+
+def test_compact_trims_long_result():
+    content = tool_response("execute_command", "x" * 1000)
+    out, saved = compact_content(content, 300)
+    result = out.parts[0].function_response.response["result"]
+    assert result.startswith("x" * 300)
+    assert "[trimmed 700 chars]" in result
+    assert saved == 1000 - len(result)
+
+
+def test_compact_leaves_short_result_untouched():
+    content = tool_response("weather", "Vizag: +29C")
+    out, saved = compact_content(content, 300)
+    assert out is content and saved == 0
+
+
+def test_compact_does_not_mutate_original():
+    content = tool_response("execute_command", "x" * 1000)
+    compact_content(content, 300)
+    assert content.parts[0].function_response.response["result"] == "x" * 1000
+
+
+def test_compact_never_touches_function_call_or_text():
+    for content in (
+        model_call("weather", {"city": "Vizag"}),
+        model_text("y" * 1000),
+        user_text("z" * 1000),
+    ):
+        out, saved = compact_content(content, 300)
+        assert out is content and saved == 0
+
+
+def test_compact_keeps_structure_and_other_fields():
+    content = tool_response("execute_command", "x" * 1000)
+    out, _ = compact_content(content, 300)
+    part = out.parts[0].function_response
+    assert part.name == "execute_command"
+    assert part.response["success"] is True
+    assert len(out.parts) == 1 and out.role == "user"
+
+
+def test_compact_trims_error_field_too():
+    content = types.Content(
+        role="user",
+        parts=[
+            types.Part.from_function_response(
+                name="execute_command",
+                response={"success": False, "result": None, "error": "e" * 1000},
+            )
+        ],
+    )
+    out, saved = compact_content(content, 300)
+    assert out.parts[0].function_response.response["error"].startswith("e" * 300)
+    assert saved > 0
+
+
+def test_compact_skips_when_stub_would_not_be_shorter():
+    content = tool_response("execute_command", "x" * 310)  # stub ~322 chars, original se bada
+    out, saved = compact_content(content, 300)
+    assert out is content and saved == 0    
