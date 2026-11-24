@@ -1,31 +1,31 @@
-from speech import microphone, stt, tts, audio
-from llms import history, chat
-from core.errors import LLMError
 import uuid
 import time
+import logging
+from google.genai import types
+from core.config import settings
+from core.errors import LLMError
+from database.repository import save_turn
+from llms import history, chat
+from llms.context import ConversationState , build_context
+from llms.usage import compute_footprint, sum_usage
+from models.schemas import PendingAction , TurnRecord, ToolCallRecord,LLMCallRecord
+from speech import microphone, stt, tts, audio
+from tools.executor import execute_pending_action
 from tools.limiter import cap_text
 from workflow.confirmation import is_confirmation,is_rejection
-from tools.executor import execute_pending_action
-from database.repository import save_turn
 from workflow.tool_handler import handle_tool_calls
-from models.schemas import PendingAction , TurnRecord, ToolCallRecord,LLMCallRecord
-import logging
-from llms.usage import compute_footprint, sum_usage
+
 logger = logging.getLogger(__name__)
-from core.config import settings
 
 def run_conversation() -> None:
     conversation_id = f"conv_{uuid.uuid4().hex[:12]}" # produce a conversation id
     turn_index = 0
-    conversation_history = []
+    state = ConversationState(conversation_id=conversation_id)
     pending_action: PendingAction | None = None
     microphone.calibrate_microphone()
     while True:
         user_audio = microphone.record_audio()
-
-        speech_result = stt.speech_to_text( 
-            audio=user_audio
-        )
+        speech_result = stt.speech_to_text(audio=user_audio)
 
         if not speech_result.success:# AGAR USER QUERY EMPTY HAI YA KOI ISSUE/FAULTY HAI TOH PHIRSE ITERATION KARAO
             print(speech_result.error)
@@ -38,10 +38,10 @@ def run_conversation() -> None:
             break
         # geninune turn ka start
         turn_index += 1
-        turn_start = len(conversation_history)   
+        current: list[types.Content] = []  # sirf is turn ke contents   
         tool_records: list[ToolCallRecord] = []
-        failure_reason: str | None = None
         llm_calls: list[LLMCallRecord] = []
+        failure_reason: str | None = None
         assistant_message: str | None = None
         status = "success"
         
@@ -68,7 +68,7 @@ def run_conversation() -> None:
                     )
                 )
                 output_text = cap_text(
-                    result.result or result.error or "",
+                    raw_output,
                     settings.max_tool_output_chars,
                 ).text
                 model_input = (
@@ -84,12 +84,19 @@ def run_conversation() -> None:
                 )
             # Na confirm, na reject: naya query maan lo, pending drop
             pending_action = None
-        conversation_history = history.append_user_query(
-            history=conversation_history,
-            user_audio_to_text=model_input, # user_text nahi
+        current = history.append_user_query( # current mein user ka query append karna, aur history mein bhi add karna
+            history=current,
+            user_audio_to_text=model_input,
+        )
+        # context turn ke start pe EK baar banta hai, poore turn ke liye same (freeze rule)
+        built = build_context(state) # built.contents mein poore conversation ka history hai, built.turns_included mein kitne turns included hai
+        logger.info(
+            "Context built: %d turns, %d contents",
+            built.turns_included,
+            len(built.contents),
         )
         try:
-            response, call = chat.generate_content(history=conversation_history,iteration=1)
+            response, call = chat.generate_content(history=built.contents + current,iteration=1) # purpose: LLM se response generate karna, aur call record bhi return karna
             llm_calls.append(call)
             tool_iterations = 0
         
@@ -101,9 +108,7 @@ def run_conversation() -> None:
                     raise LLMError("Tool iteration limit exceeded.")
                 # OUR TOOL HANDLER RETURNS A TUPLE WHICH INCLUDES A LIST - HISTORY WITH TOOLS RESPONSES AND EXCEUTIONSUMMARY WHICH MAKED DECISION FOR SUSPECIOUS/DANGER CAUSING COMMANDS
                 
-                conversation_history, tool_summary = handle_tool_calls(
-                    response=response,history=conversation_history,
-                )
+                current, tool_summary = handle_tool_calls(response=response, history=current) # pehle poori history jaati thi, ab sirf current. Ye apne andar current mein append karke wahi list return karta hai.
                 tool_records.extend(tool_summary.records)   # Agar LLM 2 baar tools call ke iterations kara toh second iteration ke time pehle iteration ke records accumulate kare
 
                 if tool_summary.requires_confirmation:
@@ -112,16 +117,14 @@ def run_conversation() -> None:
                     break
 
                 response, call = chat.generate_followup(
-                history=conversation_history,
+                history=built.contents + current,
                 iteration=tool_iterations + 1,
                 )
                 llm_calls.append(call)
                 
             if status != "awaiting_confirmation":
                 assistant_message = response.text or ""
-                conversation_history = history.append_assistant(
-                    history=conversation_history, response=response
-                )
+                current = history.append_assistant(history=current, response=response)
                 if any(r.status == "error" for r in tool_records):
                     status = "partial_failure"
         except LLMError as exc:
@@ -136,8 +139,8 @@ def run_conversation() -> None:
                 f"Final Call for: "
                 f"{pending_action.arguments.get('command')}. Say yes to proceed or no to cancel."
             )
-            conversation_history = history.append_model_text(conversation_history, assistant_message)    
-        turn_contents = conversation_history[turn_start:] 
+            current = history.append_model_text(current, assistant_message)    
+        turn_contents = current
         usage_totals = sum_usage(llm_calls) if llm_calls else None
 
         footprint_tokens: int | None = None
@@ -152,9 +155,10 @@ def run_conversation() -> None:
                 tail_contents=tail,
                 turn_contents=turn_contents,
             )    
-        if status == "failed":
-            del conversation_history[turn_start:]
-        save_turn(TurnRecord( # database is storing following values, mongodb, collection name "turns"
+        # failed turn state mein kabhi nahi jaata, purana del hack ab zaroori nahi    
+        state.commit_turn(turn_index, turn_contents, footprint_tokens, status)
+        save_turn(
+            TurnRecord( # database is storing following values, mongodb, collection name "turns"
             conversation_id=conversation_id,
             turn_index=turn_index,
             user_message=speech_result.text,
@@ -171,26 +175,21 @@ def run_conversation() -> None:
             footprint_tokens=footprint_tokens,
             footprint_source=footprint_source,
             failure_reason=failure_reason,
-        ))
+            )
+        )
 
         if status =="failed": 
             continue                
-
-        # final_content = response.text or ""
         final_content = assistant_message or ""
         if not final_content:
             continue
         print("🗣️ LLM:", final_content)
-        tts_result = tts.generate_tts(
-            final_content=final_content
-        )
+        tts_result = tts.generate_tts(final_content=final_content)
         if not tts_result.success:
             print(f"TTS error: {tts_result.error}")
             continue
 
-        audio_file = audio.create_temp_wav(
-            pcm=tts_result.audio_data
-        )
+        audio_file = audio.create_temp_wav(pcm=tts_result.audio_data)
         try:
             audio.play_audio(audio_file)
         finally:

@@ -17,7 +17,7 @@ def execute_command(command: str, timeout: int = settings.command_timeout)-> Too
             cwd=settings.working_directory
             
         )
-    except subprocess.TimeoutExpired: # zyada time liya toh exeption
+    except subprocess.TimeoutExpired: # zyada time liya toh exeptionf
         return ToolResult( success=False, error=( f"Command exceeded {timeout}s and was terminated."),)
     except OSError as e: # os me apna command nahi chala toh
         return ToolResult(
