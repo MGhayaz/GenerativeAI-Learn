@@ -43,7 +43,21 @@ class UsageTotals(BaseModel): # Represents aggregated usage totals across multip
     output_tokens_sum: int = 0
     thoughts_tokens_sum: int = 0
     cached_tokens_sum: int = 0
-    llm_latency_ms_sum: int = 0    
+    llm_latency_ms_sum: int = 0  
+    
+class ContextInfo(BaseModel):
+    window_start_turn_index: int | None = None
+    turns_in_window: int = 0
+    turns_dropped_total: int = 0
+    turns_compacted: int = 0
+    chars_saved_by_compaction: int = 0
+    trimmed_this_turn: bool = False
+    fixed_overhead_tokens: int = 0
+    history_high: int = 0
+    history_low: int = 0
+    predicted_prompt_tokens: int = 0
+    actual_first_prompt_tokens: int | None = None
+    prediction_error_pct: float | None = None      
 
 class TurnRecord(BaseModel): # Represents a record of a single turn in a conversation, including the conversation ID, turn index, user message, list of tool call records, assistant message, status of the turn, model used, list of LLM content dictionaries, and the timestamp when the turn was created.
     conversation_id: str

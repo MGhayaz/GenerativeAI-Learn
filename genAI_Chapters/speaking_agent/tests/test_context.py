@@ -1,6 +1,6 @@
 from google.genai import types
 
-from llms.context import ConversationState, build_context , compact_content
+from llms.context import ConversationState, ContextParams ,build_context , compact_content
 
 
 def user_text(text: str) -> types.Content:
@@ -173,3 +173,160 @@ def test_compact_skips_when_stub_would_not_be_shorter():
     content = tool_response("execute_command", "x" * 310)  # stub ~322 chars, original se bada
     out, saved = compact_content(content, 300)
     assert out is content and saved == 0    
+
+# ---------- 3b.2: window + budget ----------
+
+def plain_turn(i: int) -> list[types.Content]:
+    return [user_text(f"q{i}"), model_text(f"a{i}")]
+
+
+def state_with(footprints: list[int]) -> ConversationState:
+    state = ConversationState(conversation_id="conv_test")
+    for i, footprint in enumerate(footprints, start=1):
+        state.commit_turn(i, plain_turn(i), footprint, "success")
+    return state
+
+
+def make_params(**overrides) -> ContextParams:
+    base = dict(
+        input_budget_tokens=1000,
+        fixed_overhead_tokens=0,
+        tool_reserve_tokens=0,
+        low_ratio=0.5,
+        keep_full_turns=2,
+        min_recent_turns=2,
+    )
+    base.update(overrides)
+    return ContextParams(**base)
+
+
+def big_tool_turn(i: int) -> list[types.Content]:
+    return [
+        user_text(f"q{i}"),
+        model_call("execute_command", {"command": "dir"}),
+        tool_response("execute_command", "x" * 1000),
+        model_text("done"),
+    ]
+
+
+def test_no_trim_below_high():
+    built = build_context(state_with([100, 100, 100]), "", make_params())
+    assert built.window_start == 0
+    assert built.turns_included == 3
+    assert built.info.trimmed_this_turn is False
+
+
+def test_trim_drops_oldest_down_to_low():
+    # HIGH=2000, LOW=1000. 2400 > HIGH, toh 2400 -> 800 tak (4 turns drop)
+    built = build_context(state_with([400] * 6), "", make_params(input_budget_tokens=2000))
+    assert built.window_start == 4
+    assert built.turns_included == 2
+    assert built.info.trimmed_this_turn is True
+    assert built.info.turns_dropped_total == 4
+    assert built.info.window_start_turn_index == 5
+    assert built.contents[0].parts[0].text == "q5"
+
+
+def test_min_recent_turns_respected():
+    # budget se bade turns hain, par last 2 kabhi drop nahi hote
+    built = build_context(state_with([900, 900, 900]), "", make_params())
+    assert built.window_start == 1
+    assert built.turns_included == 2
+
+
+def test_single_turn_bigger_than_budget_is_kept():
+    built = build_context(state_with([5000]), "", make_params())
+    assert built.window_start == 0
+    assert built.turns_included == 1
+    assert len(built.contents) == 2
+
+
+def test_window_start_persisted_gives_hysteresis():
+    params = make_params(input_budget_tokens=2000)
+    state = state_with([400] * 6)
+    state.window_start = build_context(state, "", params).window_start
+    assert state.window_start == 4
+
+    for i in (7, 8, 9):  # total 2000, HIGH ke barabar, trim nahi
+        state.commit_turn(i, plain_turn(i), 400, "success")
+    quiet = build_context(state, "", params)
+    assert quiet.info.trimmed_this_turn is False
+    assert quiet.window_start == 4
+
+    state.commit_turn(10, plain_turn(10), 400, "success")  # 2400 > HIGH, ek saath trim
+    trimmed = build_context(state, "", params)
+    assert trimmed.info.trimmed_this_turn is True
+    assert trimmed.window_start == 8
+
+
+def test_budget_math_uses_overhead_user_and_reserve():
+    params = make_params(
+        fixed_overhead_tokens=600,
+        tool_reserve_tokens=200,
+    )
+    built = build_context(state_with([100]), "x" * 70, params)  # user_est = 20
+    assert built.info.history_high == 180   # 1000 - 600 - 20 - 200
+    assert built.info.history_low == 90
+    assert built.info.fixed_overhead_tokens == 600
+    assert built.info.predicted_prompt_tokens == 720   # 600 + 100 + 20
+
+
+def test_old_tool_outputs_compacted_recent_kept_full():
+    state = ConversationState(conversation_id="conv_test")
+    for i in (1, 2, 3):
+        state.commit_turn(i, big_tool_turn(i), 500, "success")
+
+    built = build_context(
+        state, "", make_params(input_budget_tokens=100_000, keep_full_turns=1)
+    )
+    results = [
+        c.parts[0].function_response.response["result"]
+        for c in built.contents
+        if c.parts[0].function_response
+    ]
+    assert len(results) == 3
+    assert len(results[0]) < 1000 and len(results[1]) < 1000
+    assert len(results[2]) == 1000
+    assert built.info.turns_compacted == 2
+    assert built.info.chars_saved_by_compaction == 2 * (1000 - len(results[0]))
+    # F7: effective footprint = 500 - int(677 / 3.5) = 307 (do turns), 500 (recent)
+    assert built.info.predicted_prompt_tokens == 307 * 2 + 500
+
+
+def test_build_context_does_not_mutate_state():
+    state = ConversationState(conversation_id="conv_test")
+    for i in (1, 2, 3):
+        state.commit_turn(i, big_tool_turn(i), 500, "success")
+    build_context(state, "", make_params(input_budget_tokens=100_000, keep_full_turns=1))
+    original = state.turns[0].contents[2].parts[0].function_response.response["result"]
+    assert original == "x" * 1000
+    assert state.window_start == 0
+
+
+def test_missing_footprint_falls_back_to_estimate():
+    state = ConversationState(conversation_id="conv_test")
+    state.commit_turn(1, TOOL_TURN, None, "success")
+    built = build_context(state, "hi", make_params())
+    assert built.turns_included == 1
+    assert built.info.predicted_prompt_tokens > 0
+
+
+def test_trimmed_context_keeps_invariants():
+    # budget chhota, par awaiting turn (function_call + response pair) min_recent ki wajah se bacha
+    built = build_context(make_state(), "", make_params(input_budget_tokens=400))
+    assert built.window_start == 1
+    assert built.turns_included == 2
+    first = built.contents[0]
+    assert first.role == "user" and first.parts[0].text == "delete the empty folder"
+    for i, content in enumerate(built.contents):
+        if any(p.function_call for p in content.parts):
+            assert any(p.function_response for p in built.contents[i + 1].parts)
+
+
+def test_same_input_same_output_with_params():
+    state = make_state()
+    params = make_params(input_budget_tokens=400)
+    a = build_context(state, "hi", params)
+    b = build_context(state, "hi", params)
+    assert dump(a.contents) == dump(b.contents)
+    assert a.info == b.info and a.window_start == b.window_start    
