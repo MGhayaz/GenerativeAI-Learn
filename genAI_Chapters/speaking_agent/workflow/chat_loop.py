@@ -1,12 +1,13 @@
 import uuid
 import time
 import logging
+import math
 from google.genai import types
 from core.config import settings
 from core.errors import LLMError
 from database.repository import save_turn
 from llms import history, chat
-from llms.context import ConversationState , build_context
+from llms.context import ConversationState , build_context, ContextParams
 from llms.usage import compute_footprint, sum_usage
 from models.schemas import PendingAction , TurnRecord, ToolCallRecord,LLMCallRecord
 from speech import microphone, stt, tts, audio
@@ -17,10 +18,37 @@ from workflow.tool_handler import handle_tool_calls
 
 logger = logging.getLogger(__name__)
 
+
+def _context_params() -> ContextParams:
+    # R: tool loop ke worst case ke liye jagah (max iterations x max output tokens)
+    max_tool_output_tokens = math.ceil(
+        settings.max_tool_output_chars / settings.chars_per_token
+    )
+    reserve = settings.max_tool_iterations * max_tool_output_tokens
+    floor = settings.fixed_overhead_default + reserve
+    if settings.input_budget_tokens <= floor:
+        logger.warning(
+            "input_budget_tokens=%d <= overhead+reserve=%d: history window "
+            "min_recent_turns tak limited rahegi",
+            settings.input_budget_tokens,
+            floor,
+        )
+    return ContextParams(
+        input_budget_tokens=settings.input_budget_tokens,
+        fixed_overhead_tokens=settings.fixed_overhead_default,
+        tool_reserve_tokens=reserve,
+        low_ratio=settings.history_low_ratio,
+        keep_full_turns=settings.keep_full_turns,
+        min_recent_turns=settings.min_recent_turns,
+        old_output_max_chars=settings.old_output_max_chars,
+        chars_per_token=settings.chars_per_token,
+    )
+
 def run_conversation() -> None:
     conversation_id = f"conv_{uuid.uuid4().hex[:12]}" # produce a conversation id
     turn_index = 0
     state = ConversationState(conversation_id=conversation_id)
+    params = _context_params()
     pending_action: PendingAction | None = None
     microphone.calibrate_microphone()
     while True:
@@ -89,11 +117,14 @@ def run_conversation() -> None:
             user_audio_to_text=model_input,
         )
         # context turn ke start pe EK baar banta hai, poore turn ke liye same (freeze rule)
-        built = build_context(state) # built.contents mein poore conversation ka history hai, built.turns_included mein kitne turns included hai
+        built = build_context(state,model_input, params) # built.contents mein poore conversation ka history hai, built.turns_included mein kitne turns included hai
+        state.window_start = built.window_start  # trim chunk-wise, isliye state mein save
         logger.info(
-            "Context built: %d turns, %d contents",
+            "Context built: %d turns, %d contents, predicted_prompt=%d%s",
             built.turns_included,
             len(built.contents),
+            built.info.predicted_prompt_tokens,
+            " [trimmed]" if built.info.trimmed_this_turn else "",
         )
         try:
             response, call = chat.generate_content(history=built.contents + current,iteration=1) # purpose: LLM se response generate karna, aur call record bhi return karna
@@ -154,7 +185,15 @@ def run_conversation() -> None:
                 user_text=model_input,   # speech text nahi, jo history mein gaya wo
                 tail_contents=tail,
                 turn_contents=turn_contents,
-            )    
+            )
+        # F8: pehli call ka predicted prompt vs actual
+        if llm_calls and llm_calls[0].usage.source == "api":
+            actual = llm_calls[0].usage.prompt_tokens
+            if actual:
+                built.info.actual_first_prompt_tokens = actual
+                built.info.prediction_error_pct = round(
+                    (built.info.predicted_prompt_tokens - actual) / actual * 100, 1
+                )        
         # failed turn state mein kabhi nahi jaata, purana del hack ab zaroori nahi    
         state.commit_turn(turn_index, turn_contents, footprint_tokens, status)
         save_turn(
@@ -175,6 +214,7 @@ def run_conversation() -> None:
             footprint_tokens=footprint_tokens,
             footprint_source=footprint_source,
             failure_reason=failure_reason,
+            context=built.info,
             )
         )
 

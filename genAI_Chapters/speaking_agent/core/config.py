@@ -50,7 +50,8 @@ class Settings(BaseSettings):
         ge=1,
         le=20,
     )
-    fixed_overhead_default: int = 3850   # measured: system prompt + tool schemas (Phase 1) , Is value ko jab bhi system prompt ya tools badlo, dobara measure karna padega.
+    # to update this below value, run scripts.llm-smoke to get new constant config values like prommpt tokens, fixed_overhead_default and update them in core.config else prediction error 0.7% se ~3% ho jayega in mongo db docs on each turn
+    fixed_overhead_default: int = 3963 # 3850 is old, changed on 26nov   # measured: system prompt + tool schemas (Phase 1) , Is value ko jab bhi system prompt ya tools badlo, dobara measure karna padega.
     command_timeout: int = Field(
         default=120,
         ge=1,
@@ -61,6 +62,13 @@ class Settings(BaseSettings):
     ge=200,
     le=50000,
     )
+    # context window properties(Plan A, Phase 3b)
+    input_budget_tokens: int = Field(default=16000, ge=2000)
+    history_low_ratio: float = Field(default=0.6, ge=0.3, le=0.9)
+    keep_full_turns: int = Field(default=2, ge=0)
+    min_recent_turns: int = Field(default=2, ge=1)
+    old_output_max_chars: int = Field(default=300, ge=50)
+    chars_per_token: float = Field(default=3.5, gt=0)
 
     model_config = SettingsConfigDict(
         env_file=".env",

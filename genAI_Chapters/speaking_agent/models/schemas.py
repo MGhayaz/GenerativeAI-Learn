@@ -76,6 +76,7 @@ class TurnRecord(BaseModel): # Represents a record of a single turn in a convers
     footprint_tokens: int | None = None
     footprint_source: Literal["api", "estimated"] | None = None
     failure_reason: str | None = None    
+    context: ContextInfo | None = None
 
     
 class ToolDefinition(BaseModel): # Represents the definition of a tool that can be called by the assistant, including the callable function, input/output schemas, description, and whether the tool requires confirmation before execution.

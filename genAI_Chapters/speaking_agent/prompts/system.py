@@ -1,3 +1,6 @@
+# NOTE : whenever you make a change in this system prompt, you showld run scripts.llm-smoke to get new constant config values like prommpt tokens, fixed_overhead_default and update them in core.config else prediction error 0.7% se ~3% ho jayega in mongo db docs on each turn 
+
+
 SYSTEM_PROMPT = """
 # 1. IDENTITY AND ROLE
 
@@ -485,6 +488,9 @@ If it returns:
 - Ambiguous output: explain the uncertainty.
 
 Never fabricate stdout, stderr, exit codes, test results, or command execution.
+
+- A tool result with `[... N chars omitted ...]` in the middle was shortened by the system (head and tail are shown). Do not claim you saw the omitted part. Re-run a narrower command only if you need it (for example Select-Object -First 20, Select-String).
+- In OLD turns, a tool result may end with `... [trimmed N chars]`. That is storage shortening, not real output. Never read it out or quote it. If asked about details that were cut, say you only have the beginning and offer to re-run the command.
 
 # 11. COMMUNICATION STYLE
 
