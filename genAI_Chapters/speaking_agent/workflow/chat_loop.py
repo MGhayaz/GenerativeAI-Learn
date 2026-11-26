@@ -15,6 +15,7 @@ from tools.executor import execute_pending_action
 from tools.limiter import cap_text
 from workflow.confirmation import is_confirmation,is_rejection
 from workflow.tool_handler import handle_tool_calls
+from workflow.confirmation_message import build_confirmation_message
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,7 @@ def run_conversation() -> None:
         llm_calls: list[LLMCallRecord] = []
         failure_reason: str | None = None
         assistant_message: str | None = None
+        spoken_message: str | None = None
         status = "success"
         
         
@@ -164,12 +166,11 @@ def run_conversation() -> None:
         except Exception as exc:
             logger.exception("Unexpected failure in turn")
             status = "failed"   
-            failure_reason = f"{type(exc).__name__}: {exc}"[:300]
+            failure_reason = f"{type(exc).__name__}: {exc}"[:300]   
         if status == "awaiting_confirmation" and pending_action is not None:
-            assistant_message = (
-                f"Final Call for: "
-                f"{pending_action.arguments.get('command')}. Say yes to proceed or no to cancel."
-            )
+            message = build_confirmation_message(pending_action, settings.working_directory)
+            assistant_message = message.display
+            spoken_message = message.spoken
             current = history.append_model_text(current, assistant_message)    
         turn_contents = current
         usage_totals = sum_usage(llm_calls) if llm_calls else None
@@ -224,7 +225,7 @@ def run_conversation() -> None:
         if not final_content:
             continue
         print("🗣️ LLM:", final_content)
-        tts_result = tts.generate_tts(final_content=final_content)
+        tts_result = tts.generate_tts(final_content= spoken_message or final_content ) # Terminal mein display print hoga (poori command, impact, warning), TTS spoken bolega, aur DB aur LLM history mein display jaata hai
         if not tts_result.success:
             print(f"TTS error: {tts_result.error}")
             continue
