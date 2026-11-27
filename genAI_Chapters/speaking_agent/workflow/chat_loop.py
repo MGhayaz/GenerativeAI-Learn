@@ -5,9 +5,9 @@ import math
 from google.genai import types
 from core.config import settings
 from core.errors import LLMError
-from database.repository import save_turn
+from database.repository import latest_conversation_id, load_turns,save_turn
 from llms import history, chat
-from llms.context import ConversationState , build_context, ContextParams
+from llms.context import ConversationState , build_context, ContextParams,state_from_docs
 from llms.usage import compute_footprint, sum_usage
 from models.schemas import PendingAction , TurnRecord, ToolCallRecord,LLMCallRecord
 from speech import microphone, stt, tts, audio
@@ -45,10 +45,22 @@ def _context_params() -> ContextParams:
         chars_per_token=settings.chars_per_token,
     )
 
-def run_conversation() -> None:
-    conversation_id = f"conv_{uuid.uuid4().hex[:12]}" # produce a conversation id
-    turn_index = 0
-    state = ConversationState(conversation_id=conversation_id)
+def _init_state(resume: str | None) -> tuple[ConversationState, int]:
+    """(state, last_turn_index). Resume na ho ya fail ho toh naya conversation."""
+    if resume:
+        target = latest_conversation_id() if resume == "latest" else resume
+        docs = load_turns(target) if target else []
+        if docs:
+            state = state_from_docs(target, docs)
+            last_index = max(d.get("turn_index", 0) for d in docs)
+            print(f"Resumed {target}: {len(state.turns)} turns loaded, next turn {last_index + 1}.")
+            return state, last_index
+        print("Resume ke liye conversation nahi mili, naya conversation shuru.")
+    return ConversationState(conversation_id=f"conv_{uuid.uuid4().hex[:12]}"), 0
+
+def run_conversation(resume: str | None = None) -> None:
+    state, turn_index = _init_state(resume)
+    conversation_id = state.conversation_id
     params = _context_params()
     pending_action: PendingAction | None = None
     microphone.calibrate_microphone()

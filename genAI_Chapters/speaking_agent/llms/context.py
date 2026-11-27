@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from google.genai import types
 from llms.usage import estimate_content_tokens, estimate_tokens
 from models.schemas import ContextInfo
+from llms.history import contents_from_docs
 
 logger = logging.getLogger(__name__)
 
@@ -227,3 +228,30 @@ def build_context(
         window_start=new_start,
         info=info,
     )
+
+def _is_replayable(doc: dict) -> bool:
+    """Valid turn: user text se shuru, model message pe khatam."""
+    contents = doc.get("llm_contents") or []
+    if not contents:
+        return False
+    first, last = contents[0], contents[-1]
+    starts_with_user_text = first.get("role") == "user" and any(
+        "text" in part for part in first.get("parts", [])
+    )
+    return starts_with_user_text and last.get("role") == "model"
+
+def state_from_docs(conversation_id: str, docs: list[dict]) -> ConversationState:
+    """DB docs se state rebuild. Failed, adhoore (purane format) aur kharab docs skip."""
+    state = ConversationState(conversation_id=conversation_id)
+    for doc in sorted(docs, key=lambda d: d.get("turn_index", 0)):
+        if doc.get("status") not in RETAINED_STATUSES or not _is_replayable(doc):
+            continue
+        try:
+            contents = contents_from_docs(doc["llm_contents"])
+        except Exception:
+            logger.exception("Skipping turn %s: rebuild failed", doc.get("turn_index"))
+            continue
+        state.commit_turn(
+            doc["turn_index"], contents, doc.get("footprint_tokens"), doc["status"]
+        )
+    return state

@@ -58,16 +58,17 @@ def test_real_world_compound_command(tmp_path):
     playground = make_playground(tmp_path)
     command = (
         f'cd {playground.as_posix()}; if (Test-Path "Instagram") '
-        '{ Remove-Item -Recurse -Force "Instagram"; "Deleted" } else { "missing" }'
-    )
+        '{ Remove-Item -Recurse -Force "Instagram"; "Deleted" } else { "missing" }')
     msg = build_confirmation_message(action(command), playground)
     assert "delete folder 'Instagram'" in msg.display
     assert "2 files" in msg.display
 
 
 def test_empty_folder(tmp_path):
-    msg = build_confirmation_message(action("Remove-Item empty_dir"), make_playground(tmp_path))
-    assert "empty" in msg.display
+    playground = make_playground(tmp_path)
+    (playground / "empty_dir").mkdir()
+    msg = build_confirmation_message(action("Remove-Item empty_dir"), playground)
+    assert "[empty]" in msg.display
     assert "everything inside" not in msg.display
 
 
